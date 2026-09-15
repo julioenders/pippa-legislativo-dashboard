@@ -763,7 +763,10 @@
           <span class="filter-chip" data-filter="impacto" data-value="Direto Sebrae" onclick="toggleFilter(this)">Direto Sebrae</span>
           <span class="filter-chip" data-filter="impacto" data-value="Indireto" onclick="toggleFilter(this)">Indireto</span>
           <span class="filter-chip" data-filter="impacto" data-value="Setorial" onclick="toggleFilter(this)">Setorial</span>
-          <span class="filter-chip" data-filter="impacto" data-value="Processual" onclick="toggleFilter(this)">Processual</span>
+          <span class="filter-chip" data-filter="impacto" data-value="Corporativo/profissional" onclick="toggleFilter(this)">Corporativo</span>
+          <span class="filter-chip" data-filter="impacto" data-value="Social amplo" onclick="toggleFilter(this)">Social amplo</span>
+          <span class="filter-chip" data-filter="impacto" data-value="Processual ou simbolico" onclick="toggleFilter(this)">Processual</span>
+          <span class="filter-chip" data-filter="impacto" data-value="Sem impacto identificado" onclick="toggleFilter(this)">Sem impacto</span>
         </div>
       </div>
 
@@ -878,27 +881,153 @@
 // PIPPA LEGISLATIVO — DASHBOARD ENGINE
 // =====================================================
 
-const KEYWORDS_PRIMARY = [
-  'mei','microempreendedor individual','simples nacional','lc 123','lei complementar 123',
-  'microempresa','empresa de pequeno porte','mpe','epp','fampe','sebrae','sistema s',
-  'servico social autonomo','contribuicao compulsoria','lei 8.029','lei 8029',
-  'empreendedorismo','formalizacao','desburocratizacao'
+// Word-boundary keyword matching (prevents false positives like "mei" inside "primeiro")
+function matchesKeyword(text, keyword) {
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp('\\b' + escaped + '\\b').test(text);
+}
+
+// Sigla types that are processual/symbolic (PDF criterion 5/8)
+const SIGLAS_PROCESSUAIS = ['REQ','RIC','RCP','MOC','INC','DVS','RQS','AVS'];
+
+const KEYWORDS_PROCESSUAIS = [
+  'sessao solene','mocao de pesar','mocao de repudio','mocao de apoio',
+  'voto de pesar','voto de congratulacoes','voto de louvor','voto de aplauso',
+  'homenagem postuma'
 ];
 
-const KEYWORDS_SECONDARY = [
-  'licitacao','compras publicas','tratamento favorecido','credito','microcredito',
-  'inovacao empresarial','propriedade intelectual','capacitacao empresarial',
-  'educacao empreendedora','inclusao produtiva','ambiente de negocios',
-  'abertura de empresas','licenciamento','obrigacoes acessorias','tributacao',
-  'reforma tributaria','ibs','cbs','imposto seletivo','aliquota',
-  'regime diferenciado','beneficio fiscal','nota fiscal','cnpj','registro empresarial'
+// Core: nucleus of Sebrae/MPE — triggers "Central" relevance (PDF criterion 2)
+const KEYWORDS_CORE = [
+  'simples nacional',
+  'lei complementar 123','lei complementar no 123',
+  'lc 123','lc no 123',
+  'microempreendedor individual',
+  'microempresa','empresa de pequeno porte',
+  'contribuicao compulsoria','contribuicoes compulsorias',
+  'lei 8029','lei no 8029',
+  'servico social autonomo','servicos sociais autonomos',
+  'agenda legislativa 2026','agenda legislativa de 2026'
+];
+const KEYWORDS_CORE_SHORT = ['mei','mpe','epp','fampe'];
+
+// Keywords by strategic axis — ordered by specificity, first match wins (PDF criterion 4)
+const EIXO_DEFINITIONS = [
+  {
+    eixo: 'MEI e Simples',
+    keywords: [
+      'simples nacional','lei complementar 123','lei complementar no 123',
+      'lc 123','microempreendedor individual','microempresa',
+      'empresa de pequeno porte','formalizacao','enquadramento',
+      'limite de receita','exclusao do simples','obrigacoes do mei'
+    ],
+    shortKeywords: ['mei','mpe','epp']
+  },
+  {
+    eixo: 'Credito e financiamento',
+    keywords: [
+      'microcredito','credito orientado','fundo garantidor',
+      'renegociacao de dividas','financiamento empresarial',
+      'inclusao financeira','credito produtivo','garantia de credito'
+    ],
+    shortKeywords: ['fampe']
+  },
+  {
+    eixo: 'Compras publicas',
+    keywords: [
+      'licitacao','compras publicas','tratamento favorecido',
+      'subcontratacao','cota para microempresa','preferencia em licitacao',
+      'pregao eletronico','dispensa de licitacao'
+    ]
+  },
+  {
+    eixo: 'Inovacao e digital',
+    keywords: [
+      'inovacao empresarial','propriedade intelectual',
+      'inteligencia artificial','transformacao digital','digitalizacao',
+      'automacao empresarial','modernizacao produtiva',
+      'marco legal das startups','sandbox regulatorio'
+    ],
+    shortKeywords: ['startups']
+  },
+  {
+    eixo: 'Educacao empreendedora',
+    keywords: [
+      'educacao empreendedora','capacitacao empresarial',
+      'formacao gerencial','educacao financeira empresarial',
+      'cultura empreendedora','qualificacao empreendedora'
+    ]
+  },
+  {
+    eixo: 'Desenvolvimento territorial',
+    keywords: [
+      'desenvolvimento regional','desenvolvimento territorial',
+      'transicao ecologica','bioeconomia','economia circular',
+      'ecossistema de inovacao','arranjo produtivo local',
+      'territorio empreendedor','economia sustentavel'
+    ]
+  },
+  {
+    eixo: 'Inclusao produtiva',
+    keywords: [
+      'empreendedorismo feminino','empreendedorismo negro',
+      'empreendedorismo jovem','empreendedorismo periferico',
+      'inclusao produtiva','economia solidaria',
+      'empreendedorismo social','cooperativismo'
+    ]
+  },
+  {
+    eixo: 'Ambiente de negocios',
+    keywords: [
+      'desburocratizacao','abertura de empresas','licenciamento',
+      'obrigacoes acessorias','seguranca juridica','custos regulatorios',
+      'reforma tributaria','regime diferenciado','beneficio fiscal',
+      'nota fiscal','registro empresarial','tributacao',
+      'ambiente de negocios','imposto seletivo','aliquota',
+      'empreendedorismo'
+    ],
+    shortKeywords: ['ibs','cbs','cnpj']
+  }
 ];
 
-const KEYWORDS_INSTITUTIONAL = [
-  'sesi','senai','sesc','senac','sest','senat','sescoop','apex-brasil','abdi',
-  'contribuicao sobre folha','art. 240','art 240','governanca sistema s',
-  'conselho deliberativo','orcamento servico social','auditoria sistema s',
-  'tcu sistema s'
+// Institutional filter: governance/budget impact on Sebrae/Sistema S (PDF criterion 10)
+const KEYWORDS_INSTITUTIONAL_DIRECT = [
+  'contribuicao compulsoria','contribuicoes compulsorias',
+  'lei 8029','lei no 8029','servico social autonomo',
+  'governanca do sistema s','governanca do sebrae',
+  'orcamento do sebrae','orcamento do sistema s',
+  'conselho deliberativo do sebrae',
+  'auditoria do sistema s','auditoria do sebrae',
+  'regime juridico do sistema s','destinacao de recursos do sistema s',
+  'competencias do sebrae','organizacao do sebrae',
+  'arrecadacao do sistema s','fiscalizacao do sistema s',
+  'transparencia do sistema s','prestacao de contas do sistema s',
+  'tcu sistema s','contribuicao sobre folha','art 240'
+];
+const KEYWORDS_INSTITUTIONAL_ENTITIES = [
+  'sesi','senai','sesc','senac','sest','senat','sescoop',
+  'apex-brasil','apex brasil','abdi'
+];
+const GOV_CONTEXT_TERMS = [
+  'contribuicao','orcamento','governanca','controle','auditoria',
+  'fiscalizacao','regime juridico','competencia','extincao',
+  'reorganizacao','receita','destinacao','gestao','contratacao',
+  'transparencia','prestacao de contas','obrigacao','despesa',
+  'vinculacao','alteracao','lei 8029','art 240'
+];
+
+// Social amplo sem vinculo com empreendedorismo (PDF criterion 5)
+const KEYWORDS_SOCIAL_AMPLO = [
+  'saude publica','educacao basica','educacao infantil',
+  'assistencia social','seguridade social','previdencia social',
+  'sistema unico de saude','politica habitacional','politica cultural'
+];
+
+// Corporativo/profissional especifico (PDF criterion 5)
+const KEYWORDS_CORPORATIVO = [
+  'conselho profissional','regulamentacao profissional',
+  'categoria profissional','piso salarial','jornada de trabalho',
+  'exercicio profissional','atividade privativa','registro profissional',
+  'conselho de classe','anuidade profissional'
 ];
 
 let allPropositions = [];
@@ -914,86 +1043,177 @@ function normalize(text) {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
-function classifyRelevance(ementa) {
-  const norm = normalize(ementa);
-  let score = 0;
-  let matchedPrimary = [];
-  let matchedSecondary = [];
+function classifyRelevance(ementa, sigla) {
+  const norm = normalize(ementa).replace(/º/g, 'o').replace(/ª/g, 'a');
+  const siglaUpper = (sigla || '').toUpperCase().replace(/[^A-Z]/g, '');
+
+  // 1. Detect processual/symbolic (PDF: P3 or P4)
+  const isProcessual = SIGLAS_PROCESSUAIS.includes(siglaUpper) ||
+    KEYWORDS_PROCESSUAIS.some(kw => norm.includes(kw));
+
+  if (isProcessual) {
+    return {
+      relevancia: 'Nula', prioridade: 'P4', eixo: 'Sem conexao',
+      impacto: 'Processual ou simbolico', papel: 'Arquivar',
+      institucional: 'nao', score: 0,
+      matchedPrimary: [], matchedSecondary: [], matchedInstitutional: [],
+      allMatched: ['ato processual/simbolico']
+    };
+  }
+
+  // 2. Match all keyword categories
+  let matchedCore = [];
+  let matchedEixoMap = {};
   let matchedInstitutional = [];
+  let matchedSocial = [];
+  let matchedCorporativo = [];
+  let allMatched = [];
 
-  for (const kw of KEYWORDS_PRIMARY) {
-    if (norm.includes(kw)) { score += 3; matchedPrimary.push(kw); }
+  for (const kw of KEYWORDS_CORE) {
+    if (matchesKeyword(norm, kw)) { matchedCore.push(kw); allMatched.push(kw); }
   }
-  for (const kw of KEYWORDS_SECONDARY) {
-    if (norm.includes(kw)) { score += 1; matchedSecondary.push(kw); }
-  }
-  for (const kw of KEYWORDS_INSTITUTIONAL) {
-    if (norm.includes(kw)) { score += 4; matchedInstitutional.push(kw); }
+  for (const kw of KEYWORDS_CORE_SHORT) {
+    if (matchesKeyword(norm, kw)) { matchedCore.push(kw); allMatched.push(kw); }
   }
 
-  let relevancia, prioridade, eixo, impacto, papel, institucional;
+  for (const def of EIXO_DEFINITIONS) {
+    matchedEixoMap[def.eixo] = [];
+    for (const kw of (def.keywords || [])) {
+      if (matchesKeyword(norm, kw)) {
+        matchedEixoMap[def.eixo].push(kw);
+        allMatched.push(kw);
+      }
+    }
+    for (const kw of (def.shortKeywords || [])) {
+      if (matchesKeyword(norm, kw)) {
+        matchedEixoMap[def.eixo].push(kw);
+        allMatched.push(kw);
+      }
+    }
+  }
 
-  if (matchedInstitutional.length > 0) {
+  for (const kw of KEYWORDS_INSTITUTIONAL_DIRECT) {
+    if (norm.includes(kw)) {
+      matchedInstitutional.push(kw);
+      allMatched.push(kw);
+    }
+  }
+
+  // Entities only count as institutional WITH governance/budget context (PDF criterion 10)
+  for (const kw of KEYWORDS_INSTITUTIONAL_ENTITIES) {
+    if (matchesKeyword(norm, kw)) {
+      allMatched.push(kw);
+      if (GOV_CONTEXT_TERMS.some(ctx => norm.includes(ctx))) {
+        matchedInstitutional.push(kw);
+      }
+    }
+  }
+
+  // "sebrae"/"sistema s" alone do NOT elevate priority (PDF p.8)
+  for (const term of ['sebrae', 'sistema s']) {
+    if (matchesKeyword(norm, term)) {
+      allMatched.push(term);
+      if (GOV_CONTEXT_TERMS.some(ctx => norm.includes(ctx))) {
+        matchedInstitutional.push(term);
+      }
+    }
+  }
+
+  for (const kw of KEYWORDS_SOCIAL_AMPLO) {
+    if (norm.includes(kw)) matchedSocial.push(kw);
+  }
+  for (const kw of KEYWORDS_CORPORATIVO) {
+    if (norm.includes(kw)) matchedCorporativo.push(kw);
+  }
+
+  allMatched = [...new Set(allMatched)];
+
+  // 3. Eixo — first specific match wins, ordered by specificity (PDF criterion 4)
+  let eixo = 'Sem conexao';
+  for (const def of EIXO_DEFINITIONS) {
+    if (matchedEixoMap[def.eixo].length > 0) {
+      eixo = def.eixo;
+      break;
+    }
+  }
+  if (matchedCorporativo.length > 0 && matchedCore.length === 0 && eixo === 'Sem conexao') {
+    eixo = 'Setorial/corporativa';
+  }
+
+  // 4. Institutional filter (PDF criterion 10)
+  const institucional = matchedInstitutional.length > 0 ? 'sim' : 'nao';
+
+  // 5. Relevancia (PDF criterion 2)
+  const totalEixoMatches = Object.values(matchedEixoMap).reduce((s, a) => s + a.length, 0);
+  let relevancia;
+  if (institucional === 'sim' || matchedCore.length > 0) {
     relevancia = 'Central';
-    prioridade = 'P0';
-    impacto = 'Direto Sebrae';
-    papel = 'Incidencia ativa';
-    institucional = 'sim';
-  } else if (score >= 6) {
-    relevancia = 'Central';
-    prioridade = 'P1';
-    impacto = 'Direto MPE/MEI';
-    papel = 'Incidencia ativa';
-    institucional = 'nao';
-  } else if (score >= 3) {
+  } else if (totalEixoMatches >= 2) {
     relevancia = 'Alta';
-    prioridade = 'P1';
-    impacto = 'Direto MPE/MEI';
-    papel = 'Monitoramento estrategico';
-    institucional = 'nao';
-  } else if (score >= 1) {
+  } else if (totalEixoMatches === 1) {
     relevancia = 'Media';
-    prioridade = 'P2';
-    impacto = 'Indireto';
-    papel = 'Subsidio tecnico';
-    institucional = 'nao';
-  } else {
+  } else if (matchedCorporativo.length > 0 || matchedSocial.length > 0) {
     relevancia = 'Baixa';
-    prioridade = 'P3';
-    impacto = 'Setorial';
-    papel = 'Monitoramento passivo';
-    institucional = 'nao';
+  } else {
+    relevancia = 'Nula';
   }
 
-  eixo = guessEixo(norm, matchedPrimary, matchedSecondary);
+  // 6. Tipo de impacto (PDF criterion 5)
+  let impacto;
+  if (institucional === 'sim') {
+    impacto = 'Direto Sebrae';
+  } else if (matchedCore.length > 0) {
+    impacto = 'Direto MPE/MEI';
+  } else if (matchedSocial.length > 0 && totalEixoMatches === 0) {
+    impacto = 'Social amplo';
+  } else if (matchedCorporativo.length > 0 && matchedCore.length === 0) {
+    impacto = 'Corporativo/profissional';
+  } else if (eixo === 'Setorial/corporativa') {
+    impacto = 'Setorial';
+  } else if (totalEixoMatches > 0) {
+    impacto = 'Indireto';
+  } else {
+    impacto = 'Sem impacto identificado';
+  }
+
+  // 7. Prioridade (PDF criterion 8)
+  let prioridade;
+  if (institucional === 'sim') {
+    prioridade = 'P0';
+  } else if (relevancia === 'Central' || relevancia === 'Alta') {
+    prioridade = 'P1';
+  } else if (relevancia === 'Media') {
+    prioridade = 'P2';
+  } else if (relevancia === 'Baixa') {
+    prioridade = 'P3';
+  } else {
+    prioridade = 'P4';
+  }
+
+  // 8. Papel do Sebrae (PDF criterion 1)
+  let papel;
+  if (prioridade === 'P0') {
+    papel = 'Incidencia ativa';
+  } else if (prioridade === 'P1' && relevancia === 'Central') {
+    papel = 'Incidencia ativa';
+  } else if (prioridade === 'P1') {
+    papel = 'Monitoramento estrategico';
+  } else if (prioridade === 'P2') {
+    papel = 'Subsidio tecnico';
+  } else if (prioridade === 'P3') {
+    papel = 'Monitoramento passivo';
+  } else {
+    papel = 'Fora do escopo';
+  }
+
+  const score = matchedCore.length * 3 + totalEixoMatches + matchedInstitutional.length * 4;
 
   return {
-    relevancia, prioridade, eixo, impacto, papel, institucional,
-    score, matchedPrimary, matchedSecondary, matchedInstitutional,
-    allMatched: [...matchedPrimary, ...matchedSecondary, ...matchedInstitutional]
+    relevancia, prioridade, eixo, impacto, papel, institucional, score,
+    matchedPrimary: matchedCore,
+    matchedSecondary: Object.values(matchedEixoMap).flat(),
+    matchedInstitutional, allMatched
   };
-}
-
-function guessEixo(norm, primary, secondary) {
-  if (primary.some(k => ['mei','microempreendedor individual','simples nacional','lc 123','lei complementar 123','formalizacao'].includes(k)))
-    return 'MEI e Simples';
-  if (secondary.some(k => ['tributacao','reforma tributaria','ibs','cbs','imposto seletivo','aliquota','beneficio fiscal'].includes(k)))
-    return 'Ambiente de negocios';
-  if (secondary.some(k => ['credito','microcredito'].includes(k)))
-    return 'Credito e financiamento';
-  if (secondary.some(k => ['licitacao','compras publicas'].includes(k)))
-    return 'Compras publicas';
-  if (secondary.some(k => ['inovacao empresarial','propriedade intelectual'].includes(k)))
-    return 'Inovacao e digital';
-  if (secondary.some(k => ['educacao empreendedora','capacitacao empresarial'].includes(k)))
-    return 'Educacao empreendedora';
-  if (secondary.some(k => ['inclusao produtiva'].includes(k)))
-    return 'Inclusao produtiva';
-  if (norm.includes('territorio') || norm.includes('sustentab'))
-    return 'Desenvolvimento territorial';
-  if (primary.length > 0 || secondary.length > 0)
-    return 'Ambiente de negocios';
-  return 'Sem conexao';
 }
 
 function showLoading(text, progress) {
@@ -1136,7 +1356,7 @@ async function fetchData() {
     const allRaw = [...camaraProps, ...senadoProps];
 
     for (const prop of allRaw) {
-      const classification = classifyRelevance(prop.ementa);
+      const classification = classifyRelevance(prop.ementa, prop.siglaTipo);
       allPropositions.push({
         ...prop,
         ...classification,
@@ -1410,10 +1630,10 @@ function renderPropCard(prop) {
                 <option ${prop.impacto === 'Direto Sebrae' ? 'selected' : ''}>Direto Sebrae</option>
                 <option ${prop.impacto === 'Indireto' ? 'selected' : ''}>Indireto</option>
                 <option ${prop.impacto === 'Setorial' ? 'selected' : ''}>Setorial</option>
-                <option>Corporativo/profissional</option>
-                <option>Social amplo</option>
-                <option ${prop.impacto === 'Processual' ? 'selected' : ''}>Processual</option>
-                <option>Sem impacto</option>
+                <option ${prop.impacto === 'Corporativo/profissional' ? 'selected' : ''}>Corporativo/profissional</option>
+                <option ${prop.impacto === 'Social amplo' ? 'selected' : ''}>Social amplo</option>
+                <option ${prop.impacto === 'Processual ou simbolico' ? 'selected' : ''}>Processual ou simbolico</option>
+                <option ${prop.impacto === 'Sem impacto identificado' ? 'selected' : ''}>Sem impacto identificado</option>
               </select>
             </div>
             <div class="class-field">
