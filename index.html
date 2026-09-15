@@ -150,16 +150,70 @@
     }
 
     .filter-section {
-      margin-bottom: 20px;
+      margin-bottom: 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
     }
+
+    .filter-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      cursor: pointer;
+      background: var(--surface2);
+      transition: background 0.2s;
+      user-select: none;
+    }
+
+    .filter-header:hover { background: var(--border); }
 
     .filter-title {
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 1px;
       color: var(--text-muted);
-      margin-bottom: 8px;
       font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-arrow {
+      font-size: 10px;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+    }
+
+    .filter-section.open .filter-arrow { transform: rotate(180deg); }
+
+    .filter-badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0 5px;
+      font-weight: 700;
+    }
+
+    .filter-badge.visible { display: flex; }
+
+    .filter-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease, padding 0.25s ease;
+      padding: 0 12px;
+    }
+
+    .filter-section.open .filter-body {
+      max-height: 300px;
+      padding: 10px 12px;
     }
 
     .filter-group {
@@ -169,7 +223,7 @@
     }
 
     .filter-chip {
-      background: var(--surface2);
+      background: var(--surface);
       border: 1px solid var(--border);
       color: var(--text-muted);
       padding: 4px 12px;
@@ -192,10 +246,9 @@
       font-size: 11px;
       color: var(--accent);
       cursor: pointer;
-      margin-left: auto;
+      margin-top: 8px;
       display: block;
       text-align: right;
-      margin-bottom: 8px;
     }
 
     .filter-clear:hover { text-decoration: underline; }
@@ -701,94 +754,129 @@
       <input type="text" class="search-input" id="searchInput" placeholder="Buscar na ementa..." oninput="applyFilters()">
 
       <!-- Prioridade -->
-      <div class="filter-section">
-        <div class="filter-title">Prioridade</div>
-        <span class="filter-clear" onclick="clearFilter('prioridade')">Limpar</span>
-        <div class="filter-group" id="filterPrioridade">
-          <span class="filter-chip" data-filter="prioridade" data-value="P0" onclick="toggleFilter(this)">P0 Critica</span>
-          <span class="filter-chip" data-filter="prioridade" data-value="P1" onclick="toggleFilter(this)">P1 Alta</span>
-          <span class="filter-chip" data-filter="prioridade" data-value="P2" onclick="toggleFilter(this)">P2 Media</span>
-          <span class="filter-chip" data-filter="prioridade" data-value="P3" onclick="toggleFilter(this)">P3 Baixa</span>
-          <span class="filter-chip" data-filter="prioridade" data-value="P4" onclick="toggleFilter(this)">P4 Arquivar</span>
+      <div class="filter-section" data-section="prioridade">
+        <div class="filter-header" onclick="toggleSection(this)">
+          <div class="filter-title">Prioridade <span class="filter-badge" id="badge-prioridade"></span></div>
+          <span class="filter-arrow">&#9660;</span>
+        </div>
+        <div class="filter-body">
+          <div class="filter-group" id="filterPrioridade">
+            <span class="filter-chip" data-filter="prioridade" data-value="P0" onclick="toggleFilter(this)">P0 Critica</span>
+            <span class="filter-chip" data-filter="prioridade" data-value="P1" onclick="toggleFilter(this)">P1 Alta</span>
+            <span class="filter-chip" data-filter="prioridade" data-value="P2" onclick="toggleFilter(this)">P2 Media</span>
+            <span class="filter-chip" data-filter="prioridade" data-value="P3" onclick="toggleFilter(this)">P3 Baixa</span>
+            <span class="filter-chip" data-filter="prioridade" data-value="P4" onclick="toggleFilter(this)">P4 Arquivar</span>
+          </div>
+          <span class="filter-clear" onclick="clearFilter('prioridade')">Limpar</span>
         </div>
       </div>
 
       <!-- Relevancia -->
-      <div class="filter-section">
-        <div class="filter-title">Relevancia Sebrae</div>
-        <span class="filter-clear" onclick="clearFilter('relevancia')">Limpar</span>
-        <div class="filter-group" id="filterRelevancia">
-          <span class="filter-chip" data-filter="relevancia" data-value="Central" onclick="toggleFilter(this)">Central</span>
-          <span class="filter-chip" data-filter="relevancia" data-value="Alta" onclick="toggleFilter(this)">Alta</span>
-          <span class="filter-chip" data-filter="relevancia" data-value="Media" onclick="toggleFilter(this)">Media</span>
-          <span class="filter-chip" data-filter="relevancia" data-value="Baixa" onclick="toggleFilter(this)">Baixa</span>
-          <span class="filter-chip" data-filter="relevancia" data-value="Nula" onclick="toggleFilter(this)">Nula</span>
+      <div class="filter-section" data-section="relevancia">
+        <div class="filter-header" onclick="toggleSection(this)">
+          <div class="filter-title">Relevancia Sebrae <span class="filter-badge" id="badge-relevancia"></span></div>
+          <span class="filter-arrow">&#9660;</span>
+        </div>
+        <div class="filter-body">
+          <div class="filter-group" id="filterRelevancia">
+            <span class="filter-chip" data-filter="relevancia" data-value="Central" onclick="toggleFilter(this)">Central</span>
+            <span class="filter-chip" data-filter="relevancia" data-value="Alta" onclick="toggleFilter(this)">Alta</span>
+            <span class="filter-chip" data-filter="relevancia" data-value="Media" onclick="toggleFilter(this)">Media</span>
+            <span class="filter-chip" data-filter="relevancia" data-value="Baixa" onclick="toggleFilter(this)">Baixa</span>
+            <span class="filter-chip" data-filter="relevancia" data-value="Nula" onclick="toggleFilter(this)">Nula</span>
+          </div>
+          <span class="filter-clear" onclick="clearFilter('relevancia')">Limpar</span>
         </div>
       </div>
 
       <!-- Casa -->
-      <div class="filter-section">
-        <div class="filter-title">Casa Legislativa</div>
-        <span class="filter-clear" onclick="clearFilter('casa')">Limpar</span>
-        <div class="filter-group" id="filterCasa">
-          <span class="filter-chip" data-filter="casa" data-value="Camara" onclick="toggleFilter(this)">Camara</span>
-          <span class="filter-chip" data-filter="casa" data-value="Senado" onclick="toggleFilter(this)">Senado</span>
+      <div class="filter-section" data-section="casa">
+        <div class="filter-header" onclick="toggleSection(this)">
+          <div class="filter-title">Casa Legislativa <span class="filter-badge" id="badge-casa"></span></div>
+          <span class="filter-arrow">&#9660;</span>
+        </div>
+        <div class="filter-body">
+          <div class="filter-group" id="filterCasa">
+            <span class="filter-chip" data-filter="casa" data-value="Camara" onclick="toggleFilter(this)">Camara</span>
+            <span class="filter-chip" data-filter="casa" data-value="Senado" onclick="toggleFilter(this)">Senado</span>
+          </div>
+          <span class="filter-clear" onclick="clearFilter('casa')">Limpar</span>
         </div>
       </div>
 
       <!-- Eixo Estrategico -->
-      <div class="filter-section">
-        <div class="filter-title">Eixo Estrategico</div>
-        <span class="filter-clear" onclick="clearFilter('eixo')">Limpar</span>
-        <div class="filter-group" id="filterEixo">
-          <span class="filter-chip" data-filter="eixo" data-value="Ambiente de negocios" onclick="toggleFilter(this)">Ambiente negocios</span>
-          <span class="filter-chip" data-filter="eixo" data-value="MEI e Simples" onclick="toggleFilter(this)">MEI/Simples</span>
-          <span class="filter-chip" data-filter="eixo" data-value="Credito e financiamento" onclick="toggleFilter(this)">Credito</span>
-          <span class="filter-chip" data-filter="eixo" data-value="Compras publicas" onclick="toggleFilter(this)">Compras publicas</span>
-          <span class="filter-chip" data-filter="eixo" data-value="Inovacao e digital" onclick="toggleFilter(this)">Inovacao</span>
-          <span class="filter-chip" data-filter="eixo" data-value="Educacao empreendedora" onclick="toggleFilter(this)">Educacao</span>
-          <span class="filter-chip" data-filter="eixo" data-value="Desenvolvimento territorial" onclick="toggleFilter(this)">Territorial</span>
-          <span class="filter-chip" data-filter="eixo" data-value="Inclusao produtiva" onclick="toggleFilter(this)">Inclusao</span>
-          <span class="filter-chip" data-filter="eixo" data-value="Setorial/corporativa" onclick="toggleFilter(this)">Setorial</span>
-          <span class="filter-chip" data-filter="eixo" data-value="Sem conexao" onclick="toggleFilter(this)">Sem conexao</span>
+      <div class="filter-section" data-section="eixo">
+        <div class="filter-header" onclick="toggleSection(this)">
+          <div class="filter-title">Eixo Estrategico <span class="filter-badge" id="badge-eixo"></span></div>
+          <span class="filter-arrow">&#9660;</span>
+        </div>
+        <div class="filter-body">
+          <div class="filter-group" id="filterEixo">
+            <span class="filter-chip" data-filter="eixo" data-value="Ambiente de negocios" onclick="toggleFilter(this)">Ambiente negocios</span>
+            <span class="filter-chip" data-filter="eixo" data-value="MEI e Simples" onclick="toggleFilter(this)">MEI/Simples</span>
+            <span class="filter-chip" data-filter="eixo" data-value="Credito e financiamento" onclick="toggleFilter(this)">Credito</span>
+            <span class="filter-chip" data-filter="eixo" data-value="Compras publicas" onclick="toggleFilter(this)">Compras publicas</span>
+            <span class="filter-chip" data-filter="eixo" data-value="Inovacao e digital" onclick="toggleFilter(this)">Inovacao</span>
+            <span class="filter-chip" data-filter="eixo" data-value="Educacao empreendedora" onclick="toggleFilter(this)">Educacao</span>
+            <span class="filter-chip" data-filter="eixo" data-value="Desenvolvimento territorial" onclick="toggleFilter(this)">Territorial</span>
+            <span class="filter-chip" data-filter="eixo" data-value="Inclusao produtiva" onclick="toggleFilter(this)">Inclusao</span>
+            <span class="filter-chip" data-filter="eixo" data-value="Setorial/corporativa" onclick="toggleFilter(this)">Setorial</span>
+            <span class="filter-chip" data-filter="eixo" data-value="Sem conexao" onclick="toggleFilter(this)">Sem conexao</span>
+          </div>
+          <span class="filter-clear" onclick="clearFilter('eixo')">Limpar</span>
         </div>
       </div>
 
       <!-- Tipo de Impacto -->
-      <div class="filter-section">
-        <div class="filter-title">Tipo de Impacto</div>
-        <span class="filter-clear" onclick="clearFilter('impacto')">Limpar</span>
-        <div class="filter-group" id="filterImpacto">
-          <span class="filter-chip" data-filter="impacto" data-value="Direto MPE/MEI" onclick="toggleFilter(this)">Direto MPE</span>
-          <span class="filter-chip" data-filter="impacto" data-value="Direto Sebrae" onclick="toggleFilter(this)">Direto Sebrae</span>
-          <span class="filter-chip" data-filter="impacto" data-value="Indireto" onclick="toggleFilter(this)">Indireto</span>
-          <span class="filter-chip" data-filter="impacto" data-value="Setorial" onclick="toggleFilter(this)">Setorial</span>
-          <span class="filter-chip" data-filter="impacto" data-value="Corporativo/profissional" onclick="toggleFilter(this)">Corporativo</span>
-          <span class="filter-chip" data-filter="impacto" data-value="Social amplo" onclick="toggleFilter(this)">Social amplo</span>
-          <span class="filter-chip" data-filter="impacto" data-value="Processual ou simbolico" onclick="toggleFilter(this)">Processual</span>
-          <span class="filter-chip" data-filter="impacto" data-value="Sem impacto identificado" onclick="toggleFilter(this)">Sem impacto</span>
+      <div class="filter-section" data-section="impacto">
+        <div class="filter-header" onclick="toggleSection(this)">
+          <div class="filter-title">Tipo de Impacto <span class="filter-badge" id="badge-impacto"></span></div>
+          <span class="filter-arrow">&#9660;</span>
+        </div>
+        <div class="filter-body">
+          <div class="filter-group" id="filterImpacto">
+            <span class="filter-chip" data-filter="impacto" data-value="Direto MPE/MEI" onclick="toggleFilter(this)">Direto MPE</span>
+            <span class="filter-chip" data-filter="impacto" data-value="Direto Sebrae" onclick="toggleFilter(this)">Direto Sebrae</span>
+            <span class="filter-chip" data-filter="impacto" data-value="Indireto" onclick="toggleFilter(this)">Indireto</span>
+            <span class="filter-chip" data-filter="impacto" data-value="Setorial" onclick="toggleFilter(this)">Setorial</span>
+            <span class="filter-chip" data-filter="impacto" data-value="Corporativo/profissional" onclick="toggleFilter(this)">Corporativo</span>
+            <span class="filter-chip" data-filter="impacto" data-value="Social amplo" onclick="toggleFilter(this)">Social amplo</span>
+            <span class="filter-chip" data-filter="impacto" data-value="Processual ou simbolico" onclick="toggleFilter(this)">Processual</span>
+            <span class="filter-chip" data-filter="impacto" data-value="Sem impacto identificado" onclick="toggleFilter(this)">Sem impacto</span>
+          </div>
+          <span class="filter-clear" onclick="clearFilter('impacto')">Limpar</span>
         </div>
       </div>
 
       <!-- Papel Sebrae -->
-      <div class="filter-section">
-        <div class="filter-title">Papel do Sebrae</div>
-        <span class="filter-clear" onclick="clearFilter('papel')">Limpar</span>
-        <div class="filter-group" id="filterPapel">
-          <span class="filter-chip" data-filter="papel" data-value="Incidencia ativa" onclick="toggleFilter(this)">Incidencia ativa</span>
-          <span class="filter-chip" data-filter="papel" data-value="Monitoramento estrategico" onclick="toggleFilter(this)">Monit. estrategico</span>
-          <span class="filter-chip" data-filter="papel" data-value="Subsidio tecnico" onclick="toggleFilter(this)">Subsidio tecnico</span>
-          <span class="filter-chip" data-filter="papel" data-value="Monitoramento passivo" onclick="toggleFilter(this)">Monit. passivo</span>
+      <div class="filter-section" data-section="papel">
+        <div class="filter-header" onclick="toggleSection(this)">
+          <div class="filter-title">Papel do Sebrae <span class="filter-badge" id="badge-papel"></span></div>
+          <span class="filter-arrow">&#9660;</span>
+        </div>
+        <div class="filter-body">
+          <div class="filter-group" id="filterPapel">
+            <span class="filter-chip" data-filter="papel" data-value="Incidencia ativa" onclick="toggleFilter(this)">Incidencia ativa</span>
+            <span class="filter-chip" data-filter="papel" data-value="Monitoramento estrategico" onclick="toggleFilter(this)">Monit. estrategico</span>
+            <span class="filter-chip" data-filter="papel" data-value="Subsidio tecnico" onclick="toggleFilter(this)">Subsidio tecnico</span>
+            <span class="filter-chip" data-filter="papel" data-value="Monitoramento passivo" onclick="toggleFilter(this)">Monit. passivo</span>
+          </div>
+          <span class="filter-clear" onclick="clearFilter('papel')">Limpar</span>
         </div>
       </div>
 
       <!-- Filtro Institucional -->
-      <div class="filter-section">
-        <div class="filter-title">Filtro Institucional Sebrae/Sistema S</div>
-        <span class="filter-clear" onclick="clearFilter('institucional')">Limpar</span>
-        <div class="filter-group" id="filterInstitucional">
-          <span class="filter-chip" data-filter="institucional" data-value="sim" onclick="toggleFilter(this)">Sim</span>
-          <span class="filter-chip" data-filter="institucional" data-value="nao" onclick="toggleFilter(this)">Nao</span>
+      <div class="filter-section" data-section="institucional">
+        <div class="filter-header" onclick="toggleSection(this)">
+          <div class="filter-title">Institucional Sebrae/S <span class="filter-badge" id="badge-institucional"></span></div>
+          <span class="filter-arrow">&#9660;</span>
+        </div>
+        <div class="filter-body">
+          <div class="filter-group" id="filterInstitucional">
+            <span class="filter-chip" data-filter="institucional" data-value="sim" onclick="toggleFilter(this)">Sim</span>
+            <span class="filter-chip" data-filter="institucional" data-value="nao" onclick="toggleFilter(this)">Nao</span>
+          </div>
+          <span class="filter-clear" onclick="clearFilter('institucional')">Limpar</span>
         </div>
       </div>
 
@@ -1420,6 +1508,22 @@ function updateThermometer() {
   }
 }
 
+function toggleSection(header) {
+  const section = header.closest('.filter-section');
+  section.classList.toggle('open');
+}
+
+function updateFilterBadges() {
+  const filters = ['prioridade','relevancia','casa','eixo','impacto','papel','institucional'];
+  filters.forEach(f => {
+    const badge = document.getElementById('badge-' + f);
+    if (!badge) return;
+    const count = activeFilters[f] ? activeFilters[f].length : 0;
+    badge.textContent = count;
+    badge.classList.toggle('visible', count > 0);
+  });
+}
+
 function toggleFilter(chip) {
   const filter = chip.dataset.filter;
   const value = chip.dataset.value;
@@ -1436,6 +1540,7 @@ function toggleFilter(chip) {
       chip.classList.add('active');
     }
   }
+  updateFilterBadges();
   applyFilters();
 }
 
@@ -1444,6 +1549,7 @@ function clearFilter(filter) {
   document.querySelectorAll(`[data-filter="${filter}"]`).forEach(chip => {
     chip.className = 'filter-chip';
   });
+  updateFilterBadges();
   applyFilters();
 }
 
