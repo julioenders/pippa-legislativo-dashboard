@@ -1,0 +1,1715 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PIPPA Legislativo — Painel de Monitoramento</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #242836;
+      --border: #2e3348;
+      --text: #e4e6ef;
+      --text-muted: #8b8fa8;
+      --accent: #4f8cff;
+      --accent-hover: #6ba0ff;
+      --p0: #ff4d6a;
+      --p1: #ff8c42;
+      --p2: #ffc542;
+      --p3: #4ecdc4;
+      --p4: #8b8fa8;
+      --central: #ff4d6a;
+      --alta: #ff8c42;
+      --media: #ffc542;
+      --baixa: #4ecdc4;
+      --nula: #8b8fa8;
+      --camara: #4f8cff;
+      --senado: #a855f7;
+      --success: #22c55e;
+      --radius: 10px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #1a1d27 0%, #242836 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 16px; }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .date-input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .date-input:focus { border-color: var(--accent); }
+
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 8px 20px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); background: transparent; }
+
+    .thermometer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .thermo-green { background: rgba(34,197,94,0.15); color: #22c55e; }
+    .thermo-yellow { background: rgba(255,197,66,0.15); color: #ffc542; }
+    .thermo-orange { background: rgba(255,140,66,0.15); color: #ff8c42; }
+    .thermo-red { background: rgba(255,77,106,0.15); color: #ff4d6a; }
+
+    /* Layout */
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: calc(100vh - 64px);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      overflow-y: auto;
+      max-height: calc(100vh - 64px);
+      position: sticky;
+      top: 64px;
+    }
+
+    .filter-section {
+      margin-bottom: 20px;
+    }
+
+    .filter-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .filter-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .filter-chip:hover { border-color: var(--accent); color: var(--text); }
+    .filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .filter-chip.active-p0 { background: var(--p0); border-color: var(--p0); color: #fff; }
+    .filter-chip.active-p1 { background: var(--p1); border-color: var(--p1); color: #fff; }
+    .filter-chip.active-p2 { background: var(--p2); border-color: var(--p2); color: #000; }
+    .filter-chip.active-p3 { background: var(--p3); border-color: var(--p3); color: #000; }
+    .filter-chip.active-p4 { background: var(--p4); border-color: var(--p4); color: #fff; }
+
+    .filter-clear {
+      font-size: 11px;
+      color: var(--accent);
+      cursor: pointer;
+      margin-left: auto;
+      display: block;
+      text-align: right;
+      margin-bottom: 8px;
+    }
+
+    .filter-clear:hover { text-decoration: underline; }
+
+    .search-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      outline: none;
+      margin-bottom: 16px;
+    }
+
+    .search-input:focus { border-color: var(--accent); }
+    .search-input::placeholder { color: var(--text-muted); }
+
+    /* Main content */
+    .main {
+      padding: 20px 24px;
+      overflow-y: auto;
+    }
+
+    /* KPI Bar */
+    .kpi-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+    }
+
+    .kpi-value {
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .kpi-camara { color: var(--camara); }
+    .kpi-senado { color: var(--senado); }
+    .kpi-relevantes { color: var(--success); }
+    .kpi-criticas { color: var(--p0); }
+
+    /* Charts */
+    .charts-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .chart-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+
+    .chart-wrapper {
+      position: relative;
+      height: 220px;
+    }
+
+    /* Propositions */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .section-count {
+      font-size: 13px;
+      color: var(--text-muted);
+      background: var(--surface2);
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+
+    .prop-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .prop-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+
+    .prop-card:hover { border-color: var(--accent); box-shadow: var(--shadow); }
+
+    .prop-header {
+      padding: 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .prop-priority {
+      min-width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .priority-P0 { background: rgba(255,77,106,0.2); color: var(--p0); }
+    .priority-P1 { background: rgba(255,140,66,0.2); color: var(--p1); }
+    .priority-P2 { background: rgba(255,197,66,0.2); color: var(--p2); }
+    .priority-P3 { background: rgba(78,205,196,0.2); color: var(--p3); }
+    .priority-P4 { background: rgba(139,143,168,0.2); color: var(--p4); }
+
+    .prop-info { flex: 1; min-width: 0; }
+
+    .prop-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .prop-casa {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .casa-camara { background: rgba(79,140,255,0.2); color: var(--camara); }
+    .casa-senado { background: rgba(168,85,247,0.2); color: var(--senado); }
+
+    .prop-ementa {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .prop-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .prop-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--surface2);
+      color: var(--text-muted);
+    }
+
+    .prop-tag-eixo { background: rgba(79,140,255,0.15); color: var(--accent); }
+    .prop-tag-relevancia { background: rgba(255,140,66,0.15); color: var(--alta); }
+
+    .prop-expand {
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+
+    .prop-expand:hover { background: var(--surface2); }
+    .prop-card.expanded .prop-expand { transform: rotate(180deg); }
+
+    .prop-details {
+      display: none;
+      padding: 0 16px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .prop-card.expanded .prop-details { display: block; }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .detail-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .detail-value {
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .classification-editor {
+      background: var(--surface2);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-top: 12px;
+    }
+
+    .class-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--accent);
+    }
+
+    .class-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+
+    .class-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .class-field label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .class-field select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .class-field select:focus { border-color: var(--accent); }
+
+    .btn-save-class {
+      margin-top: 12px;
+      background: var(--success);
+      font-size: 12px;
+      padding: 6px 16px;
+    }
+
+    /* Loading */
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15,17,23,0.85);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .loading-overlay.active { display: flex; }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .loading-progress {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .empty-state-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    /* Export modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15,17,23,0.8);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-backdrop.active { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .modal-content {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      font-size: 13px;
+      white-space: pre-wrap;
+      line-height: 1.6;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      justify-content: flex-end;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--success);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 600;
+      z-index: 400;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar {
+        position: static;
+        max-height: none;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .header { flex-wrap: wrap; gap: 12px; }
+      .kpi-bar { grid-template-columns: repeat(2, 1fr); }
+      .charts-row { grid-template-columns: 1fr; }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    .relevance-badge {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+
+    .rel-alta { background: var(--p1); }
+    .rel-media { background: var(--p2); }
+    .rel-baixa { background: var(--p3); }
+
+    .keyword-match {
+      background: rgba(79,140,255,0.2);
+      color: var(--accent);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .sidebar-footer {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div>
+        <div class="logo">PIPPA Legislativo</div>
+        <div class="logo-sub">Plataforma de Inteligencia em Politicas Publicas Aplicadas</div>
+      </div>
+    </div>
+    <div class="header-controls">
+      <div id="thermometer" class="thermometer thermo-green">Sem dados carregados</div>
+      <input type="date" id="dateInput" class="date-input" title="Data de consulta">
+      <button class="btn" id="btnFetch" onclick="fetchData()">Consultar APIs</button>
+      <button class="btn btn-outline" onclick="exportWhatsApp()">Exportar WhatsApp</button>
+    </div>
+  </header>
+
+  <!-- Layout -->
+  <div class="layout">
+
+    <!-- Sidebar Filters -->
+    <aside class="sidebar">
+      <input type="text" class="search-input" id="searchInput" placeholder="Buscar na ementa..." oninput="applyFilters()">
+
+      <!-- Prioridade -->
+      <div class="filter-section">
+        <div class="filter-title">Prioridade</div>
+        <span class="filter-clear" onclick="clearFilter('prioridade')">Limpar</span>
+        <div class="filter-group" id="filterPrioridade">
+          <span class="filter-chip" data-filter="prioridade" data-value="P0" onclick="toggleFilter(this)">P0 Critica</span>
+          <span class="filter-chip" data-filter="prioridade" data-value="P1" onclick="toggleFilter(this)">P1 Alta</span>
+          <span class="filter-chip" data-filter="prioridade" data-value="P2" onclick="toggleFilter(this)">P2 Media</span>
+          <span class="filter-chip" data-filter="prioridade" data-value="P3" onclick="toggleFilter(this)">P3 Baixa</span>
+          <span class="filter-chip" data-filter="prioridade" data-value="P4" onclick="toggleFilter(this)">P4 Arquivar</span>
+        </div>
+      </div>
+
+      <!-- Relevancia -->
+      <div class="filter-section">
+        <div class="filter-title">Relevancia Sebrae</div>
+        <span class="filter-clear" onclick="clearFilter('relevancia')">Limpar</span>
+        <div class="filter-group" id="filterRelevancia">
+          <span class="filter-chip" data-filter="relevancia" data-value="Central" onclick="toggleFilter(this)">Central</span>
+          <span class="filter-chip" data-filter="relevancia" data-value="Alta" onclick="toggleFilter(this)">Alta</span>
+          <span class="filter-chip" data-filter="relevancia" data-value="Media" onclick="toggleFilter(this)">Media</span>
+          <span class="filter-chip" data-filter="relevancia" data-value="Baixa" onclick="toggleFilter(this)">Baixa</span>
+          <span class="filter-chip" data-filter="relevancia" data-value="Nula" onclick="toggleFilter(this)">Nula</span>
+        </div>
+      </div>
+
+      <!-- Casa -->
+      <div class="filter-section">
+        <div class="filter-title">Casa Legislativa</div>
+        <span class="filter-clear" onclick="clearFilter('casa')">Limpar</span>
+        <div class="filter-group" id="filterCasa">
+          <span class="filter-chip" data-filter="casa" data-value="Camara" onclick="toggleFilter(this)">Camara</span>
+          <span class="filter-chip" data-filter="casa" data-value="Senado" onclick="toggleFilter(this)">Senado</span>
+        </div>
+      </div>
+
+      <!-- Eixo Estrategico -->
+      <div class="filter-section">
+        <div class="filter-title">Eixo Estrategico</div>
+        <span class="filter-clear" onclick="clearFilter('eixo')">Limpar</span>
+        <div class="filter-group" id="filterEixo">
+          <span class="filter-chip" data-filter="eixo" data-value="Ambiente de negocios" onclick="toggleFilter(this)">Ambiente negocios</span>
+          <span class="filter-chip" data-filter="eixo" data-value="MEI e Simples" onclick="toggleFilter(this)">MEI/Simples</span>
+          <span class="filter-chip" data-filter="eixo" data-value="Credito e financiamento" onclick="toggleFilter(this)">Credito</span>
+          <span class="filter-chip" data-filter="eixo" data-value="Compras publicas" onclick="toggleFilter(this)">Compras publicas</span>
+          <span class="filter-chip" data-filter="eixo" data-value="Inovacao e digital" onclick="toggleFilter(this)">Inovacao</span>
+          <span class="filter-chip" data-filter="eixo" data-value="Educacao empreendedora" onclick="toggleFilter(this)">Educacao</span>
+          <span class="filter-chip" data-filter="eixo" data-value="Desenvolvimento territorial" onclick="toggleFilter(this)">Territorial</span>
+          <span class="filter-chip" data-filter="eixo" data-value="Inclusao produtiva" onclick="toggleFilter(this)">Inclusao</span>
+          <span class="filter-chip" data-filter="eixo" data-value="Setorial/corporativa" onclick="toggleFilter(this)">Setorial</span>
+          <span class="filter-chip" data-filter="eixo" data-value="Sem conexao" onclick="toggleFilter(this)">Sem conexao</span>
+        </div>
+      </div>
+
+      <!-- Tipo de Impacto -->
+      <div class="filter-section">
+        <div class="filter-title">Tipo de Impacto</div>
+        <span class="filter-clear" onclick="clearFilter('impacto')">Limpar</span>
+        <div class="filter-group" id="filterImpacto">
+          <span class="filter-chip" data-filter="impacto" data-value="Direto MPE/MEI" onclick="toggleFilter(this)">Direto MPE</span>
+          <span class="filter-chip" data-filter="impacto" data-value="Direto Sebrae" onclick="toggleFilter(this)">Direto Sebrae</span>
+          <span class="filter-chip" data-filter="impacto" data-value="Indireto" onclick="toggleFilter(this)">Indireto</span>
+          <span class="filter-chip" data-filter="impacto" data-value="Setorial" onclick="toggleFilter(this)">Setorial</span>
+          <span class="filter-chip" data-filter="impacto" data-value="Processual" onclick="toggleFilter(this)">Processual</span>
+        </div>
+      </div>
+
+      <!-- Papel Sebrae -->
+      <div class="filter-section">
+        <div class="filter-title">Papel do Sebrae</div>
+        <span class="filter-clear" onclick="clearFilter('papel')">Limpar</span>
+        <div class="filter-group" id="filterPapel">
+          <span class="filter-chip" data-filter="papel" data-value="Incidencia ativa" onclick="toggleFilter(this)">Incidencia ativa</span>
+          <span class="filter-chip" data-filter="papel" data-value="Monitoramento estrategico" onclick="toggleFilter(this)">Monit. estrategico</span>
+          <span class="filter-chip" data-filter="papel" data-value="Subsidio tecnico" onclick="toggleFilter(this)">Subsidio tecnico</span>
+          <span class="filter-chip" data-filter="papel" data-value="Monitoramento passivo" onclick="toggleFilter(this)">Monit. passivo</span>
+        </div>
+      </div>
+
+      <!-- Filtro Institucional -->
+      <div class="filter-section">
+        <div class="filter-title">Filtro Institucional Sebrae/Sistema S</div>
+        <span class="filter-clear" onclick="clearFilter('institucional')">Limpar</span>
+        <div class="filter-group" id="filterInstitucional">
+          <span class="filter-chip" data-filter="institucional" data-value="sim" onclick="toggleFilter(this)">Sim</span>
+          <span class="filter-chip" data-filter="institucional" data-value="nao" onclick="toggleFilter(this)">Nao</span>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        PIPPA Legislativo v1.0<br>
+        Sebrae Nacional — Observatorio<br>
+        APIs: Camara dos Deputados · Senado Federal
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main" id="mainContent">
+
+      <!-- KPI Bar -->
+      <div class="kpi-bar">
+        <div class="kpi-card">
+          <div class="kpi-value kpi-camara" id="kpiCamara">—</div>
+          <div class="kpi-label">Camara</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value kpi-senado" id="kpiSenado">—</div>
+          <div class="kpi-label">Senado</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value kpi-relevantes" id="kpiRelevantes">—</div>
+          <div class="kpi-label">Relevantes Sebrae</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value kpi-criticas" id="kpiCriticas">—</div>
+          <div class="kpi-label">P0 + P1</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" style="color:var(--p2)" id="kpiMonitorar">—</div>
+          <div class="kpi-label">P2 Monitorar</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">Distribuicao por Prioridade</div>
+          <div class="chart-wrapper"><canvas id="chartPrioridade"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Distribuicao por Eixo Estrategico</div>
+          <div class="chart-wrapper"><canvas id="chartEixo"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Por Casa Legislativa</div>
+          <div class="chart-wrapper"><canvas id="chartCasa"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Propositions -->
+      <div id="propContainer">
+        <div class="empty-state">
+          <div class="empty-state-icon">&#128220;</div>
+          <div class="empty-state-title">Selecione uma data e clique em "Consultar APIs"</div>
+          <p>O painel consultara as APIs abertas da Camara dos Deputados e do Senado Federal, filtrara as proposicoes relevantes para o Sebrae e aplicara a pre-classificacao automatica.</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">Consultando APIs legislativas...</div>
+    <div class="loading-progress" id="loadingProgress"></div>
+  </div>
+
+  <!-- Export Modal -->
+  <div class="modal-backdrop" id="exportModal">
+    <div class="modal">
+      <div class="modal-title">Exportar para WhatsApp</div>
+      <div class="modal-content" id="exportContent"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Fechar</button>
+        <button class="btn" onclick="copyExport()">Copiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">Copiado!</div>
+
+<script>
+// =====================================================
+// PIPPA LEGISLATIVO — DASHBOARD ENGINE
+// =====================================================
+
+const KEYWORDS_PRIMARY = [
+  'mei','microempreendedor individual','simples nacional','lc 123','lei complementar 123',
+  'microempresa','empresa de pequeno porte','mpe','epp','fampe','sebrae','sistema s',
+  'servico social autonomo','contribuicao compulsoria','lei 8.029','lei 8029',
+  'empreendedorismo','formalizacao','desburocratizacao'
+];
+
+const KEYWORDS_SECONDARY = [
+  'licitacao','compras publicas','tratamento favorecido','credito','microcredito',
+  'inovacao empresarial','propriedade intelectual','capacitacao empresarial',
+  'educacao empreendedora','inclusao produtiva','ambiente de negocios',
+  'abertura de empresas','licenciamento','obrigacoes acessorias','tributacao',
+  'reforma tributaria','ibs','cbs','imposto seletivo','aliquota',
+  'regime diferenciado','beneficio fiscal','nota fiscal','cnpj','registro empresarial'
+];
+
+const KEYWORDS_INSTITUTIONAL = [
+  'sesi','senai','sesc','senac','sest','senat','sescoop','apex-brasil','abdi',
+  'contribuicao sobre folha','art. 240','art 240','governanca sistema s',
+  'conselho deliberativo','orcamento servico social','auditoria sistema s',
+  'tcu sistema s'
+];
+
+let allPropositions = [];
+let filteredPropositions = [];
+let activeFilters = { prioridade: [], relevancia: [], casa: [], eixo: [], impacto: [], papel: [], institucional: [] };
+let chartPrioridade, chartEixo, chartCasa;
+
+// Set today's date
+document.getElementById('dateInput').valueAsDate = new Date();
+
+function normalize(text) {
+  if (!text) return '';
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+function classifyRelevance(ementa) {
+  const norm = normalize(ementa);
+  let score = 0;
+  let matchedPrimary = [];
+  let matchedSecondary = [];
+  let matchedInstitutional = [];
+
+  for (const kw of KEYWORDS_PRIMARY) {
+    if (norm.includes(kw)) { score += 3; matchedPrimary.push(kw); }
+  }
+  for (const kw of KEYWORDS_SECONDARY) {
+    if (norm.includes(kw)) { score += 1; matchedSecondary.push(kw); }
+  }
+  for (const kw of KEYWORDS_INSTITUTIONAL) {
+    if (norm.includes(kw)) { score += 4; matchedInstitutional.push(kw); }
+  }
+
+  let relevancia, prioridade, eixo, impacto, papel, institucional;
+
+  if (matchedInstitutional.length > 0) {
+    relevancia = 'Central';
+    prioridade = 'P0';
+    impacto = 'Direto Sebrae';
+    papel = 'Incidencia ativa';
+    institucional = 'sim';
+  } else if (score >= 6) {
+    relevancia = 'Central';
+    prioridade = 'P1';
+    impacto = 'Direto MPE/MEI';
+    papel = 'Incidencia ativa';
+    institucional = 'nao';
+  } else if (score >= 3) {
+    relevancia = 'Alta';
+    prioridade = 'P1';
+    impacto = 'Direto MPE/MEI';
+    papel = 'Monitoramento estrategico';
+    institucional = 'nao';
+  } else if (score >= 1) {
+    relevancia = 'Media';
+    prioridade = 'P2';
+    impacto = 'Indireto';
+    papel = 'Subsidio tecnico';
+    institucional = 'nao';
+  } else {
+    relevancia = 'Baixa';
+    prioridade = 'P3';
+    impacto = 'Setorial';
+    papel = 'Monitoramento passivo';
+    institucional = 'nao';
+  }
+
+  eixo = guessEixo(norm, matchedPrimary, matchedSecondary);
+
+  return {
+    relevancia, prioridade, eixo, impacto, papel, institucional,
+    score, matchedPrimary, matchedSecondary, matchedInstitutional,
+    allMatched: [...matchedPrimary, ...matchedSecondary, ...matchedInstitutional]
+  };
+}
+
+function guessEixo(norm, primary, secondary) {
+  if (primary.some(k => ['mei','microempreendedor individual','simples nacional','lc 123','lei complementar 123','formalizacao'].includes(k)))
+    return 'MEI e Simples';
+  if (secondary.some(k => ['tributacao','reforma tributaria','ibs','cbs','imposto seletivo','aliquota','beneficio fiscal'].includes(k)))
+    return 'Ambiente de negocios';
+  if (secondary.some(k => ['credito','microcredito'].includes(k)))
+    return 'Credito e financiamento';
+  if (secondary.some(k => ['licitacao','compras publicas'].includes(k)))
+    return 'Compras publicas';
+  if (secondary.some(k => ['inovacao empresarial','propriedade intelectual'].includes(k)))
+    return 'Inovacao e digital';
+  if (secondary.some(k => ['educacao empreendedora','capacitacao empresarial'].includes(k)))
+    return 'Educacao empreendedora';
+  if (secondary.some(k => ['inclusao produtiva'].includes(k)))
+    return 'Inclusao produtiva';
+  if (norm.includes('territorio') || norm.includes('sustentab'))
+    return 'Desenvolvimento territorial';
+  if (primary.length > 0 || secondary.length > 0)
+    return 'Ambiente de negocios';
+  return 'Sem conexao';
+}
+
+function showLoading(text, progress) {
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.add('active');
+  document.getElementById('loadingText').textContent = text || 'Consultando APIs legislativas...';
+  document.getElementById('loadingProgress').textContent = progress || '';
+}
+
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.remove('active');
+}
+
+async function fetchWithTimeout(url, timeout = 30000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'Accept': 'application/json' }
+    });
+    clearTimeout(id);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } catch (e) {
+    clearTimeout(id);
+    console.warn(`Fetch failed: ${url}`, e.message);
+    return null;
+  }
+}
+
+async function fetchCamara(date) {
+  showLoading('Consultando Camara dos Deputados...', 'Buscando proposicoes apresentadas...');
+
+  let propositions = [];
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    const url = `https://dadosabertos.camara.leg.br/api/v2/proposicoes?dataApresentacaoInicio=${date}&dataApresentacaoFim=${date}&itens=100&pagina=${page}&ordem=DESC&ordenarPor=id`;
+    const data = await fetchWithTimeout(url);
+
+    if (!data || !data.dados || data.dados.length === 0) {
+      hasMore = false;
+    } else {
+      for (const prop of data.dados) {
+        propositions.push({
+          id: prop.id,
+          sigla: prop.siglaTipo,
+          numero: prop.numero,
+          ano: prop.ano,
+          ementa: prop.ementa || '',
+          casa: 'Camara',
+          uri: prop.uri,
+          siglaTipo: prop.siglaTipo,
+          dataApresentacao: date,
+          url: `https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${prop.id}`
+        });
+      }
+      showLoading('Consultando Camara dos Deputados...', `${propositions.length} proposicoes encontradas (pagina ${page})...`);
+      if (data.dados.length < 100) hasMore = false;
+      else page++;
+    }
+  }
+
+  return propositions;
+}
+
+async function fetchSenado(date) {
+  showLoading('Consultando Senado Federal...', 'Buscando materias em tramitacao...');
+
+  let propositions = [];
+  const year = date.split('-')[0];
+  const siglas = ['pl', 'plp', 'pec'];
+
+  for (let i = 0; i < siglas.length; i++) {
+    const sigla = siglas[i];
+    showLoading('Consultando Senado Federal...', `Buscando ${sigla.toUpperCase()}s de ${year}... (${i+1}/${siglas.length})`);
+
+    const url = `https://legis.senado.leg.br/dadosabertos/materia/pesquisa/lista?sigla=${sigla}&ano=${year}&tramitando=S`;
+    const data = await fetchWithTimeout(url);
+
+    if (data) {
+      try {
+        let materias = [];
+        const resp = data?.PesquisaBasicaMateria?.Materias?.Materia;
+        if (Array.isArray(resp)) {
+          materias = resp;
+        } else if (resp) {
+          materias = [resp];
+        }
+
+        for (const mat of materias) {
+          const codigo = mat.CodigoMateria || mat.Codigo || '';
+          const siglaM = mat.SiglaSubtipoMateria || mat.DescricaoSubtipoMateria || sigla.toUpperCase();
+          const numero = mat.NumeroMateria || '';
+          const ano = mat.AnoMateria || year;
+          const ementa = mat.EmentaMateria || mat.Ementa || '';
+
+          propositions.push({
+            id: codigo,
+            sigla: siglaM,
+            numero: numero,
+            ano: ano,
+            ementa: ementa,
+            casa: 'Senado',
+            siglaTipo: siglaM,
+            dataApresentacao: mat.DataApresentacao || date,
+            url: `https://www25.senado.leg.br/web/atividade/materias/-/materia/${codigo}`
+          });
+        }
+      } catch (e) {
+        console.warn(`Error parsing Senado ${sigla}:`, e);
+      }
+    }
+  }
+
+  return propositions;
+}
+
+async function fetchData() {
+  const date = document.getElementById('dateInput').value;
+  if (!date) { alert('Selecione uma data.'); return; }
+
+  const btn = document.getElementById('btnFetch');
+  btn.disabled = true;
+
+  try {
+    showLoading('Iniciando consulta...', '');
+
+    const [camaraProps, senadoProps] = await Promise.all([
+      fetchCamara(date),
+      fetchSenado(date)
+    ]);
+
+    showLoading('Classificando proposicoes...', 'Aplicando filtros de relevancia Sebrae...');
+
+    allPropositions = [];
+
+    const allRaw = [...camaraProps, ...senadoProps];
+
+    for (const prop of allRaw) {
+      const classification = classifyRelevance(prop.ementa);
+      allPropositions.push({
+        ...prop,
+        ...classification,
+        date: date
+      });
+    }
+
+    allPropositions.sort((a, b) => {
+      const prioOrder = { P0: 0, P1: 1, P2: 2, P3: 3, P4: 4 };
+      return (prioOrder[a.prioridade] || 5) - (prioOrder[b.prioridade] || 5);
+    });
+
+    updateKPIs(camaraProps.length, senadoProps.length);
+    applyFilters();
+    updateCharts();
+    updateThermometer();
+
+    hideLoading();
+
+  } catch (e) {
+    console.error('Fetch error:', e);
+    hideLoading();
+    alert('Erro ao consultar APIs: ' + e.message);
+  }
+
+  btn.disabled = false;
+}
+
+function updateKPIs(camaraTotal, senadoTotal) {
+  document.getElementById('kpiCamara').textContent = camaraTotal;
+  document.getElementById('kpiSenado').textContent = senadoTotal;
+
+  const relevantes = allPropositions.filter(p => p.score > 0).length;
+  const criticas = allPropositions.filter(p => p.prioridade === 'P0' || p.prioridade === 'P1').length;
+  const monitorar = allPropositions.filter(p => p.prioridade === 'P2').length;
+
+  document.getElementById('kpiRelevantes').textContent = relevantes;
+  document.getElementById('kpiCriticas').textContent = criticas;
+  document.getElementById('kpiMonitorar').textContent = monitorar;
+}
+
+function updateThermometer() {
+  const el = document.getElementById('thermometer');
+  const hasP0 = allPropositions.some(p => p.prioridade === 'P0');
+  const hasP1 = allPropositions.some(p => p.prioridade === 'P1');
+  const hasP2 = allPropositions.some(p => p.prioridade === 'P2');
+
+  el.className = 'thermometer';
+  if (hasP0) {
+    el.classList.add('thermo-red');
+    el.textContent = 'CRITICO — Proposicao critica identificada';
+  } else if (hasP1) {
+    el.classList.add('thermo-orange');
+    el.textContent = 'ALTO IMPACTO — Proposicao de alta prioridade';
+  } else if (hasP2) {
+    el.classList.add('thermo-yellow');
+    el.textContent = 'MODERADO — Proposicoes em monitoramento';
+  } else {
+    el.classList.add('thermo-green');
+    el.textContent = 'TRANQUILO — Sem materia critica';
+  }
+}
+
+function toggleFilter(chip) {
+  const filter = chip.dataset.filter;
+  const value = chip.dataset.value;
+
+  const idx = activeFilters[filter].indexOf(value);
+  if (idx >= 0) {
+    activeFilters[filter].splice(idx, 1);
+    chip.classList.remove('active', `active-${value.toLowerCase()}`);
+  } else {
+    activeFilters[filter].push(value);
+    if (filter === 'prioridade') {
+      chip.classList.add(`active-${value.toLowerCase()}`);
+    } else {
+      chip.classList.add('active');
+    }
+  }
+  applyFilters();
+}
+
+function clearFilter(filter) {
+  activeFilters[filter] = [];
+  document.querySelectorAll(`[data-filter="${filter}"]`).forEach(chip => {
+    chip.className = 'filter-chip';
+  });
+  applyFilters();
+}
+
+function applyFilters() {
+  const search = normalize(document.getElementById('searchInput').value);
+
+  filteredPropositions = allPropositions.filter(prop => {
+    if (search && !normalize(prop.ementa).includes(search) &&
+        !normalize(`${prop.sigla} ${prop.numero}/${prop.ano}`).includes(search)) return false;
+
+    if (activeFilters.prioridade.length && !activeFilters.prioridade.includes(prop.prioridade)) return false;
+    if (activeFilters.relevancia.length && !activeFilters.relevancia.includes(prop.relevancia)) return false;
+    if (activeFilters.casa.length && !activeFilters.casa.includes(prop.casa)) return false;
+    if (activeFilters.eixo.length && !activeFilters.eixo.includes(prop.eixo)) return false;
+    if (activeFilters.impacto.length && !activeFilters.impacto.includes(prop.impacto)) return false;
+    if (activeFilters.papel.length && !activeFilters.papel.includes(prop.papel)) return false;
+    if (activeFilters.institucional.length && !activeFilters.institucional.includes(prop.institucional)) return false;
+
+    return true;
+  });
+
+  renderPropositions();
+  updateCharts();
+}
+
+function renderPropositions() {
+  const container = document.getElementById('propContainer');
+
+  if (filteredPropositions.length === 0 && allPropositions.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">&#128220;</div>
+        <div class="empty-state-title">Selecione uma data e clique em "Consultar APIs"</div>
+        <p>O painel consultara as APIs abertas da Camara dos Deputados e do Senado Federal.</p>
+      </div>`;
+    return;
+  }
+
+  if (filteredPropositions.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">&#128269;</div>
+        <div class="empty-state-title">Nenhuma proposicao encontrada com esses filtros</div>
+        <p>Tente ajustar os filtros na barra lateral.</p>
+      </div>`;
+    return;
+  }
+
+  const groups = { P0: [], P1: [], P2: [], P3: [], P4: [] };
+  filteredPropositions.forEach(p => {
+    if (!groups[p.prioridade]) groups[p.prioridade] = [];
+    groups[p.prioridade].push(p);
+  });
+
+  const labels = {
+    P0: 'Proposicoes Criticas (P0)',
+    P1: 'Prioridade Alta (P1)',
+    P2: 'Monitoramento (P2)',
+    P3: 'Radar Passivo (P3)',
+    P4: 'Baixa Prioridade (P4)'
+  };
+
+  let html = '';
+  for (const [prio, props] of Object.entries(groups)) {
+    if (props.length === 0) continue;
+    html += `
+      <div class="section-header">
+        <div class="section-title">${labels[prio] || prio}</div>
+        <span class="section-count">${props.length} proposicoes</span>
+      </div>
+      <div class="prop-list">
+        ${props.map(p => renderPropCard(p)).join('')}
+      </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function renderPropCard(prop) {
+  const casaClass = prop.casa === 'Camara' ? 'casa-camara' : 'casa-senado';
+  const keywords = prop.allMatched.slice(0, 3).map(k =>
+    `<span class="prop-tag">${k}</span>`
+  ).join('');
+
+  return `
+    <div class="prop-card" id="prop-${prop.id}">
+      <div class="prop-header" onclick="toggleProp('${prop.id}')">
+        <div class="prop-priority priority-${prop.prioridade}">${prop.prioridade}</div>
+        <div class="prop-info">
+          <div class="prop-title">
+            ${prop.sigla} ${prop.numero}/${prop.ano}
+            <span class="prop-casa ${casaClass}">${prop.casa}</span>
+          </div>
+          <div class="prop-ementa">${escapeHtml(prop.ementa)}</div>
+          <div class="prop-tags">
+            <span class="prop-tag prop-tag-relevancia">${prop.relevancia}</span>
+            <span class="prop-tag prop-tag-eixo">${prop.eixo}</span>
+            ${keywords}
+          </div>
+        </div>
+        <div class="prop-expand">&#9660;</div>
+      </div>
+      <div class="prop-details">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-label">Sigla / Numero</span>
+            <span class="detail-value">${prop.sigla} ${prop.numero}/${prop.ano}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Casa</span>
+            <span class="detail-value">${prop.casa === 'Camara' ? 'Camara dos Deputados' : 'Senado Federal'}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Data Apresentacao</span>
+            <span class="detail-value">${prop.dataApresentacao}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Score Relevancia</span>
+            <span class="detail-value">${prop.score} pontos</span>
+          </div>
+          <div class="detail-item" style="grid-column: 1 / -1">
+            <span class="detail-label">Ementa Completa</span>
+            <span class="detail-value">${escapeHtml(prop.ementa)}</span>
+          </div>
+          ${prop.url ? `<div class="detail-item">
+            <span class="detail-label">Link Oficial</span>
+            <span class="detail-value"><a href="${prop.url}" target="_blank" rel="noopener" style="color:var(--accent)">${prop.url.length > 60 ? prop.url.substring(0, 60) + '...' : prop.url}</a></span>
+          </div>` : ''}
+        </div>
+
+        <div class="classification-editor">
+          <div class="class-title">Classificacao — 10 Criterios Sebrae</div>
+          <div class="class-grid">
+            <div class="class-field">
+              <label>1. Papel do Sebrae</label>
+              <select id="cls-papel-${prop.id}" onchange="updateClassification('${prop.id}')">
+                <option ${prop.papel === 'Incidencia ativa' ? 'selected' : ''}>Incidencia ativa</option>
+                <option ${prop.papel === 'Monitoramento estrategico' ? 'selected' : ''}>Monitoramento estrategico</option>
+                <option ${prop.papel === 'Subsidio tecnico' ? 'selected' : ''}>Subsidio tecnico</option>
+                <option ${prop.papel === 'Monitoramento passivo' ? 'selected' : ''}>Monitoramento passivo</option>
+                <option>Delegar a Sebrae UF</option>
+                <option>Arquivar</option>
+                <option>Fora do escopo</option>
+              </select>
+            </div>
+            <div class="class-field">
+              <label>2. Relevancia</label>
+              <select id="cls-relevancia-${prop.id}" onchange="updateClassification('${prop.id}')">
+                <option ${prop.relevancia === 'Central' ? 'selected' : ''}>Central</option>
+                <option ${prop.relevancia === 'Alta' ? 'selected' : ''}>Alta</option>
+                <option ${prop.relevancia === 'Media' ? 'selected' : ''}>Media</option>
+                <option ${prop.relevancia === 'Baixa' ? 'selected' : ''}>Baixa</option>
+                <option ${prop.relevancia === 'Nula' ? 'selected' : ''}>Nula</option>
+              </select>
+            </div>
+            <div class="class-field">
+              <label>3. Aderencia PE 2024-2027</label>
+              <select id="cls-aderencia-${prop.id}">
+                <option ${prop.relevancia === 'Central' || prop.relevancia === 'Alta' ? 'selected' : ''}>Alta aderencia</option>
+                <option ${prop.relevancia === 'Media' ? 'selected' : ''}>Media aderencia</option>
+                <option ${prop.relevancia === 'Baixa' ? 'selected' : ''}>Baixa aderencia</option>
+                <option ${prop.relevancia === 'Nula' ? 'selected' : ''}>Sem aderencia clara</option>
+              </select>
+            </div>
+            <div class="class-field">
+              <label>4. Eixo Estrategico</label>
+              <select id="cls-eixo-${prop.id}" onchange="updateClassification('${prop.id}')">
+                <option ${prop.eixo === 'Ambiente de negocios' ? 'selected' : ''}>Ambiente de negocios</option>
+                <option ${prop.eixo === 'MEI e Simples' ? 'selected' : ''}>MEI e Simples</option>
+                <option ${prop.eixo === 'Credito e financiamento' ? 'selected' : ''}>Credito e financiamento</option>
+                <option ${prop.eixo === 'Compras publicas' ? 'selected' : ''}>Compras publicas</option>
+                <option ${prop.eixo === 'Inovacao e digital' ? 'selected' : ''}>Inovacao e digital</option>
+                <option ${prop.eixo === 'Educacao empreendedora' ? 'selected' : ''}>Educacao empreendedora</option>
+                <option ${prop.eixo === 'Desenvolvimento territorial' ? 'selected' : ''}>Desenvolvimento territorial</option>
+                <option ${prop.eixo === 'Inclusao produtiva' ? 'selected' : ''}>Inclusao produtiva</option>
+                <option ${prop.eixo === 'Setorial/corporativa' ? 'selected' : ''}>Setorial/corporativa</option>
+                <option ${prop.eixo === 'Sem conexao' ? 'selected' : ''}>Sem conexao</option>
+              </select>
+            </div>
+            <div class="class-field">
+              <label>5. Tipo de Impacto</label>
+              <select id="cls-impacto-${prop.id}" onchange="updateClassification('${prop.id}')">
+                <option ${prop.impacto === 'Direto MPE/MEI' ? 'selected' : ''}>Direto MPE/MEI</option>
+                <option ${prop.impacto === 'Direto Sebrae' ? 'selected' : ''}>Direto Sebrae</option>
+                <option ${prop.impacto === 'Indireto' ? 'selected' : ''}>Indireto</option>
+                <option ${prop.impacto === 'Setorial' ? 'selected' : ''}>Setorial</option>
+                <option>Corporativo/profissional</option>
+                <option>Social amplo</option>
+                <option ${prop.impacto === 'Processual' ? 'selected' : ''}>Processual</option>
+                <option>Sem impacto</option>
+              </select>
+            </div>
+            <div class="class-field">
+              <label>6. Abrangencia</label>
+              <select id="cls-abrangencia-${prop.id}">
+                <option>Nacional e transversal</option>
+                <option>Nacional, mas setorial</option>
+                <option>Regional/local</option>
+                <option>Categoria profissional</option>
+                <option>Empresa/cadeia especifica</option>
+                <option>Indefinida</option>
+              </select>
+            </div>
+            <div class="class-field">
+              <label>7. Situacao de Tramitacao</label>
+              <select id="cls-tramitacao-${prop.id}">
+                <option>Ativa e recente</option>
+                <option>Ativa, mas lenta</option>
+                <option>Latente</option>
+                <option>Paralisada</option>
+                <option>Encerrada</option>
+                <option>Indeterminada</option>
+              </select>
+            </div>
+            <div class="class-field">
+              <label>8. Prioridade</label>
+              <select id="cls-prioridade-${prop.id}" onchange="updateClassification('${prop.id}')">
+                <option ${prop.prioridade === 'P0' ? 'selected' : ''}>P0 — Critica</option>
+                <option ${prop.prioridade === 'P1' ? 'selected' : ''}>P1 — Alta</option>
+                <option ${prop.prioridade === 'P2' ? 'selected' : ''}>P2 — Media</option>
+                <option ${prop.prioridade === 'P3' ? 'selected' : ''}>P3 — Baixa</option>
+                <option ${prop.prioridade === 'P4' ? 'selected' : ''}>P4 — Arquivar</option>
+              </select>
+            </div>
+            <div class="class-field">
+              <label>9. Acao Recomendada</label>
+              <select id="cls-acao-${prop.id}">
+                <option>Elaborar nota tecnica</option>
+                <option ${prop.prioridade === 'P0' ? 'selected' : ''}>Articular institucionalmente</option>
+                <option>Acompanhar relatoria/comissao</option>
+                <option ${prop.prioridade === 'P2' ? 'selected' : ''}>Monitorar se houver movimentacao</option>
+                <option>Consolidar com semelhantes</option>
+                <option>Delegar a UF/parceiro</option>
+                <option ${prop.prioridade === 'P4' ? 'selected' : ''}>Arquivar da carteira</option>
+                <option>Reclassificar manualmente</option>
+              </select>
+            </div>
+            <div class="class-field">
+              <label>10. Filtro Institucional</label>
+              <select id="cls-institucional-${prop.id}" onchange="updateClassification('${prop.id}')">
+                <option ${prop.institucional === 'sim' ? 'selected' : ''}>Sim</option>
+                <option ${prop.institucional === 'nao' ? 'selected' : ''}>Nao</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-save-class" onclick="saveClassification('${prop.id}')">Salvar Classificacao</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function toggleProp(id) {
+  const card = document.getElementById(`prop-${id}`);
+  card.classList.toggle('expanded');
+}
+
+function updateClassification(id) {
+  const prop = allPropositions.find(p => String(p.id) === String(id));
+  if (!prop) return;
+
+  const prioSelect = document.getElementById(`cls-prioridade-${id}`);
+  const relSelect = document.getElementById(`cls-relevancia-${id}`);
+  const eixoSelect = document.getElementById(`cls-eixo-${id}`);
+  const impactoSelect = document.getElementById(`cls-impacto-${id}`);
+  const papelSelect = document.getElementById(`cls-papel-${id}`);
+  const instSelect = document.getElementById(`cls-institucional-${id}`);
+
+  if (prioSelect) prop.prioridade = prioSelect.value.split(' ')[0];
+  if (relSelect) prop.relevancia = relSelect.value;
+  if (eixoSelect) prop.eixo = eixoSelect.value;
+  if (impactoSelect) prop.impacto = impactoSelect.value;
+  if (papelSelect) prop.papel = papelSelect.value;
+  if (instSelect) prop.institucional = instSelect.value;
+}
+
+function saveClassification(id) {
+  updateClassification(id);
+
+  allPropositions.sort((a, b) => {
+    const prioOrder = { P0: 0, P1: 1, P2: 2, P3: 3, P4: 4 };
+    return (prioOrder[a.prioridade] || 5) - (prioOrder[b.prioridade] || 5);
+  });
+
+  applyFilters();
+  updateCharts();
+  updateThermometer();
+  updateKPIs(
+    allPropositions.filter(p => p.casa === 'Camara').length,
+    allPropositions.filter(p => p.casa === 'Senado').length
+  );
+  showToast('Classificacao salva!');
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Charts
+function updateCharts() {
+  const data = filteredPropositions.length > 0 ? filteredPropositions : allPropositions;
+
+  const prioCounts = { P0: 0, P1: 0, P2: 0, P3: 0, P4: 0 };
+  const eixoCounts = {};
+  const casaCounts = { Camara: 0, Senado: 0 };
+
+  data.forEach(p => {
+    prioCounts[p.prioridade] = (prioCounts[p.prioridade] || 0) + 1;
+    eixoCounts[p.eixo] = (eixoCounts[p.eixo] || 0) + 1;
+    casaCounts[p.casa] = (casaCounts[p.casa] || 0) + 1;
+  });
+
+  const chartDefaults = {
+    color: '#8b8fa8',
+    font: { family: "'Segoe UI', sans-serif" }
+  };
+
+  Chart.defaults.color = chartDefaults.color;
+  Chart.defaults.font.family = chartDefaults.font.family;
+
+  // Priority chart
+  if (chartPrioridade) chartPrioridade.destroy();
+  chartPrioridade = new Chart(document.getElementById('chartPrioridade'), {
+    type: 'doughnut',
+    data: {
+      labels: ['P0 Critica', 'P1 Alta', 'P2 Media', 'P3 Baixa', 'P4 Arquivar'],
+      datasets: [{
+        data: [prioCounts.P0, prioCounts.P1, prioCounts.P2, prioCounts.P3, prioCounts.P4],
+        backgroundColor: ['#ff4d6a', '#ff8c42', '#ffc542', '#4ecdc4', '#8b8fa8'],
+        borderColor: '#1a1d27',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } }
+      }
+    }
+  });
+
+  // Eixo chart
+  if (chartEixo) chartEixo.destroy();
+  const eixoLabels = Object.keys(eixoCounts).sort((a, b) => eixoCounts[b] - eixoCounts[a]);
+  const eixoColors = [
+    '#4f8cff', '#a855f7', '#ff4d6a', '#ff8c42', '#ffc542',
+    '#4ecdc4', '#22c55e', '#f472b6', '#94a3b8', '#818cf8'
+  ];
+
+  chartEixo = new Chart(document.getElementById('chartEixo'), {
+    type: 'bar',
+    data: {
+      labels: eixoLabels.map(l => l.length > 18 ? l.substring(0, 18) + '...' : l),
+      datasets: [{
+        data: eixoLabels.map(l => eixoCounts[l]),
+        backgroundColor: eixoLabels.map((_, i) => eixoColors[i % eixoColors.length]),
+        borderRadius: 4,
+        barPercentage: 0.7
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#2e3348' }, ticks: { font: { size: 11 } } },
+        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+
+  // Casa chart
+  if (chartCasa) chartCasa.destroy();
+  chartCasa = new Chart(document.getElementById('chartCasa'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Camara dos Deputados', 'Senado Federal'],
+      datasets: [{
+        data: [casaCounts.Camara, casaCounts.Senado],
+        backgroundColor: ['#4f8cff', '#a855f7'],
+        borderColor: '#1a1d27',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+// Export to WhatsApp format
+function exportWhatsApp() {
+  const date = document.getElementById('dateInput').value;
+  if (!allPropositions.length) { alert('Consulte os dados primeiro.'); return; }
+
+  const dateObj = new Date(date + 'T12:00:00');
+  const dateStr = dateObj.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const camaraTotal = allPropositions.filter(p => p.casa === 'Camara').length;
+  const senadoTotal = allPropositions.filter(p => p.casa === 'Senado').length;
+  const relevantes = allPropositions.filter(p => p.score > 0).length;
+  const p0p1 = allPropositions.filter(p => p.prioridade === 'P0' || p.prioridade === 'P1');
+  const p2 = allPropositions.filter(p => p.prioridade === 'P2');
+  const p3p4 = allPropositions.filter(p => p.prioridade === 'P3' || p.prioridade === 'P4');
+
+  let text = `*PIPPA — Plataforma de Inteligencia em Politicas Publicas Aplicadas*\n`;
+  text += `*Monitor Legislativo* — ${dateStr}\n`;
+  text += `${camaraTotal} proposicoes na Camara · ${senadoTotal} no Senado · ${relevantes} relevantes para o Sebrae\n\n`;
+
+  if (p0p1.length > 0) {
+    text += `*Proposicoes prioritarias (P0 e P1)*\n\n`;
+    for (const p of p0p1) {
+      text += `• *${p.sigla} ${p.numero}/${p.ano}* — ${p.casa}\n`;
+      text += `_Ementa:_ ${p.ementa.substring(0, 200)}${p.ementa.length > 200 ? '...' : ''}\n`;
+      text += `_Prioridade:_ ${p.prioridade} | _Relevancia:_ ${p.relevancia} | _Eixo:_ ${p.eixo}\n`;
+      text += `_Impacto:_ ${p.impacto} | _Papel Sebrae:_ ${p.papel}\n`;
+      if (p.url) text += `${p.url}\n`;
+      text += `\n`;
+    }
+  }
+
+  if (p2.length > 0) {
+    text += `*Proposicoes em monitoramento (P2)*\n\n`;
+    for (const p of p2.slice(0, 10)) {
+      text += `• ${p.sigla} ${p.numero}/${p.ano} — ${p.ementa.substring(0, 80)}... — _P2_ — ${p.eixo}\n`;
+    }
+    if (p2.length > 10) text += `_... e mais ${p2.length - 10} proposicoes P2_\n`;
+    text += `\n`;
+  }
+
+  const hasP0 = p0p1.some(p => p.prioridade === 'P0');
+  const hasP1 = p0p1.some(p => p.prioridade === 'P1');
+
+  let thermo;
+  if (hasP0) thermo = 'CRITICO — Proposicao critica identificada';
+  else if (hasP1) thermo = 'ALTO IMPACTO — Proposicao de alta prioridade';
+  else if (p2.length > 0) thermo = 'MODERADO — Proposicoes em monitoramento';
+  else thermo = 'TRANQUILO — Sem materia critica em pauta';
+
+  text += `*Termometro legislativo:* ${thermo}\n\n`;
+  text += `—\n`;
+  text += `_Fontes:_ API Dados Abertos da Camara dos Deputados · API Dados Abertos do Senado Federal\n`;
+  text += `_Proposicoes de baixa prioridade (P3/P4):_ ${p3p4.length} identificadas, nao detalhadas\n\n`;
+  text += `_Conteudo gerado com base em dados oficiais das APIs legislativas._`;
+
+  document.getElementById('exportContent').textContent = text;
+  document.getElementById('exportModal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('exportModal').classList.remove('active');
+}
+
+function copyExport() {
+  const text = document.getElementById('exportContent').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Copiado para a area de transferencia!');
+  }).catch(() => {
+    const range = document.createRange();
+    range.selectNode(document.getElementById('exportContent'));
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand('copy');
+    showToast('Copiado!');
+  });
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// Initialize charts with empty data
+window.addEventListener('DOMContentLoaded', () => {
+  updateCharts();
+});
+</script>
+
+</body>
+</html>
