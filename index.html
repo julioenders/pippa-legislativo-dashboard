@@ -309,6 +309,32 @@
     .kpi-relevantes { color: var(--success); }
     .kpi-criticas { color: var(--p0); }
 
+    .kpi-bar-secondary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card-sm {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      text-align: center;
+    }
+
+    .kpi-card-sm .kpi-value {
+      font-size: 24px;
+    }
+
+    .kpi-card-sm .kpi-label {
+      font-size: 11px;
+    }
+
+    .kpi-tipo { color: var(--accent); }
+    .kpi-comissoes { color: #f59e0b; }
+
     /* Charts */
     .charts-row {
       display: grid;
@@ -914,6 +940,30 @@
         </div>
       </div>
 
+      <!-- KPI Tipos -->
+      <div class="kpi-bar-secondary">
+        <div class="kpi-card-sm">
+          <div class="kpi-value kpi-tipo" id="kpiPL">—</div>
+          <div class="kpi-label">PL</div>
+        </div>
+        <div class="kpi-card-sm">
+          <div class="kpi-value kpi-tipo" id="kpiPLP">—</div>
+          <div class="kpi-label">PLP</div>
+        </div>
+        <div class="kpi-card-sm">
+          <div class="kpi-value kpi-tipo" id="kpiPEC">—</div>
+          <div class="kpi-label">PEC</div>
+        </div>
+        <div class="kpi-card-sm">
+          <div class="kpi-value kpi-tipo" id="kpiMPV">—</div>
+          <div class="kpi-label">MPV</div>
+        </div>
+        <div class="kpi-card-sm">
+          <div class="kpi-value kpi-comissoes" id="kpiComissoes">—</div>
+          <div class="kpi-label">Comissoes Ativas</div>
+        </div>
+      </div>
+
       <!-- Charts -->
       <div class="charts-row">
         <div class="chart-card">
@@ -1375,13 +1425,14 @@ async function fetchSenado(date) {
 
   let propositions = [];
   const year = date.split('-')[0];
-  const siglas = ['pl', 'plp', 'pec'];
+  const dateCompact = date.replace(/-/g, '');
+  const siglas = ['pl', 'plp', 'pec', 'mpv'];
 
   for (let i = 0; i < siglas.length; i++) {
     const sigla = siglas[i];
-    showLoading('Consultando Senado Federal...', `Buscando ${sigla.toUpperCase()}s de ${year}... (${i+1}/${siglas.length})`);
+    showLoading('Consultando Senado Federal...', `Buscando ${sigla.toUpperCase()}s de ${date}... (${i+1}/${siglas.length})`);
 
-    const url = `https://legis.senado.leg.br/dadosabertos/materia/pesquisa/lista?sigla=${sigla}&ano=${year}&tramitando=S`;
+    const url = `https://legis.senado.leg.br/dadosabertos/materia/pesquisa/lista?sigla=${sigla}&ano=${year}&dataInicioApresentacao=${dateCompact}&dataFimApresentacao=${dateCompact}&tramitando=S`;
     const data = await fetchWithTimeout(url);
 
     if (data) {
@@ -1396,7 +1447,7 @@ async function fetchSenado(date) {
 
         for (const mat of materias) {
           const codigo = mat.CodigoMateria || mat.Codigo || '';
-          const siglaM = mat.SiglaSubtipoMateria || mat.DescricaoSubtipoMateria || sigla.toUpperCase();
+          const siglaM = mat.SiglaSubtipoMateria || mat.DescricaoSubtipoMateria || mat.Sigla || sigla.toUpperCase();
           const numero = mat.NumeroMateria || '';
           const ano = mat.AnoMateria || year;
           const ementa = mat.EmentaMateria || mat.Ementa || '';
@@ -1409,7 +1460,7 @@ async function fetchSenado(date) {
             ementa: ementa,
             casa: 'Senado',
             siglaTipo: siglaM,
-            dataApresentacao: mat.DataApresentacao || date,
+            dataApresentacao: mat.DataApresentacao || mat.Data || date,
             url: `https://www25.senado.leg.br/web/atividade/materias/-/materia/${codigo}`
           });
         }
@@ -1422,6 +1473,28 @@ async function fetchSenado(date) {
   return propositions;
 }
 
+async function fetchComissoes(date) {
+  let total = 0;
+
+  try {
+    const [perm, temp] = await Promise.all([
+      fetchWithTimeout(`https://dadosabertos.camara.leg.br/api/v2/orgaos?codTipoOrgao=2&itens=100&ordem=ASC&ordenarPor=sigla`),
+      fetchWithTimeout(`https://dadosabertos.camara.leg.br/api/v2/orgaos?codTipoOrgao=3&itens=100&ordem=ASC&ordenarPor=sigla`)
+    ]);
+
+    const filterActive = (data) => {
+      if (!data?.dados) return 0;
+      return data.dados.filter(o => !o.dataFim || o.dataFim >= date).length;
+    };
+
+    total = filterActive(perm) + filterActive(temp);
+  } catch (e) {
+    console.warn('Error fetching comissoes:', e);
+  }
+
+  return total;
+}
+
 async function fetchData() {
   const date = document.getElementById('dateInput').value;
   if (!date) { alert('Selecione uma data.'); return; }
@@ -1432,9 +1505,10 @@ async function fetchData() {
   try {
     showLoading('Iniciando consulta...', '');
 
-    const [camaraProps, senadoProps] = await Promise.all([
+    const [camaraProps, senadoProps, comissoesAtivas] = await Promise.all([
       fetchCamara(date),
-      fetchSenado(date)
+      fetchSenado(date),
+      fetchComissoes(date)
     ]);
 
     showLoading('Classificando proposicoes...', 'Aplicando filtros de relevancia Sebrae...');
@@ -1457,7 +1531,7 @@ async function fetchData() {
       return (prioOrder[a.prioridade] || 5) - (prioOrder[b.prioridade] || 5);
     });
 
-    updateKPIs(camaraProps.length, senadoProps.length);
+    updateKPIs(camaraProps.length, senadoProps.length, comissoesAtivas);
     applyFilters();
     updateCharts();
     updateThermometer();
@@ -1473,7 +1547,7 @@ async function fetchData() {
   btn.disabled = false;
 }
 
-function updateKPIs(camaraTotal, senadoTotal) {
+function updateKPIs(camaraTotal, senadoTotal, comissoesAtivas) {
   document.getElementById('kpiCamara').textContent = camaraTotal;
   document.getElementById('kpiSenado').textContent = senadoTotal;
 
@@ -1484,6 +1558,17 @@ function updateKPIs(camaraTotal, senadoTotal) {
   document.getElementById('kpiRelevantes').textContent = relevantes;
   document.getElementById('kpiCriticas').textContent = criticas;
   document.getElementById('kpiMonitorar').textContent = monitorar;
+
+  const countByTipo = (tipo) => allPropositions.filter(p => {
+    const s = (p.siglaTipo || '').toUpperCase();
+    return s === tipo;
+  }).length;
+
+  document.getElementById('kpiPL').textContent = countByTipo('PL');
+  document.getElementById('kpiPLP').textContent = countByTipo('PLP');
+  document.getElementById('kpiPEC').textContent = countByTipo('PEC');
+  document.getElementById('kpiMPV').textContent = countByTipo('MPV');
+  document.getElementById('kpiComissoes').textContent = comissoesAtivas || 0;
 }
 
 function updateThermometer() {
@@ -1962,9 +2047,16 @@ function exportWhatsApp() {
   const p2 = allPropositions.filter(p => p.prioridade === 'P2');
   const p3p4 = allPropositions.filter(p => p.prioridade === 'P3' || p.prioridade === 'P4');
 
+  const countTipo = (t) => allPropositions.filter(p => (p.siglaTipo || '').toUpperCase() === t).length;
+  const plCount = countTipo('PL');
+  const plpCount = countTipo('PLP');
+  const pecCount = countTipo('PEC');
+  const mpvCount = countTipo('MPV');
+
   let text = `*PIPPA — Plataforma de Inteligencia em Politicas Publicas Aplicadas*\n`;
   text += `*Monitor Legislativo* — ${dateStr}\n`;
-  text += `${camaraTotal} proposicoes na Camara · ${senadoTotal} no Senado · ${relevantes} relevantes para o Sebrae\n\n`;
+  text += `${camaraTotal} proposicoes na Camara · ${senadoTotal} no Senado · ${relevantes} relevantes para o Sebrae\n`;
+  text += `PL: ${plCount} · PLP: ${plpCount} · PEC: ${pecCount} · MPV: ${mpvCount}\n\n`;
 
   if (p0p1.length > 0) {
     text += `*Proposicoes prioritarias (P0 e P1)*\n\n`;
