@@ -2038,61 +2038,126 @@ function exportWhatsApp() {
   if (!allPropositions.length) { alert('Consulte os dados primeiro.'); return; }
 
   const dateObj = new Date(date + 'T12:00:00');
-  const dateStr = dateObj.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const dateStr = dateObj.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const camaraTotal = allPropositions.filter(p => p.casa === 'Camara').length;
   const senadoTotal = allPropositions.filter(p => p.casa === 'Senado').length;
   const relevantes = allPropositions.filter(p => p.score > 0).length;
-  const p0p1 = allPropositions.filter(p => p.prioridade === 'P0' || p.prioridade === 'P1');
+  const p0 = allPropositions.filter(p => p.prioridade === 'P0');
+  const p1 = allPropositions.filter(p => p.prioridade === 'P1');
+  const p0p1 = [...p0, ...p1];
   const p2 = allPropositions.filter(p => p.prioridade === 'P2');
   const p3p4 = allPropositions.filter(p => p.prioridade === 'P3' || p.prioridade === 'P4');
 
-  const countTipo = (t) => allPropositions.filter(p => (p.siglaTipo || '').toUpperCase() === t).length;
-  const plCount = countTipo('PL');
-  const plpCount = countTipo('PLP');
-  const pecCount = countTipo('PEC');
-  const mpvCount = countTipo('MPV');
+  const eixos = {};
+  allPropositions.filter(p => p.score > 0).forEach(p => { eixos[p.eixo] = (eixos[p.eixo] || 0) + 1; });
+  const eixosOrdenados = Object.entries(eixos).sort((a,b) => b[1] - a[1]);
 
-  let text = `*PIPPA — Plataforma de Inteligencia em Politicas Publicas Aplicadas*\n`;
-  text += `*Monitor Legislativo* — ${dateStr}\n`;
-  text += `${camaraTotal} proposicoes na Camara · ${senadoTotal} no Senado · ${relevantes} relevantes para o Sebrae\n`;
-  text += `PL: ${plCount} · PLP: ${plpCount} · PEC: ${pecCount} · MPV: ${mpvCount}\n\n`;
+  const casas = [];
+  if (camaraTotal > 0) casas.push('Câmara');
+  if (senadoTotal > 0) casas.push('Senado');
+
+  let text = `PIPPA — Plataforma de Inteligência em Políticas Públicas Aplicadas\n\n`;
+  text += `Monitor Legislativo\n`;
+  text += `${dateStr}\n`;
+  text += `2 bases consultadas (Câmara e Senado) · ${allPropositions.length} proposições identificadas · ${relevantes} relevantes para o Sebrae\n\n`;
+
+  // O que aconteceu hoje
+  text += `O que aconteceu hoje?\n\n`;
 
   if (p0p1.length > 0) {
-    text += `*Proposicoes prioritarias (P0 e P1)*\n\n`;
-    for (const p of p0p1) {
-      text += `• *${p.sigla} ${p.numero}/${p.ano}* — ${p.casa}\n`;
-      text += `_Ementa:_ ${p.ementa.substring(0, 200)}${p.ementa.length > 200 ? '...' : ''}\n`;
-      text += `_Prioridade:_ ${p.prioridade} | _Relevancia:_ ${p.relevancia} | _Eixo:_ ${p.eixo}\n`;
-      text += `_Impacto:_ ${p.impacto} | _Papel Sebrae:_ ${p.papel}\n`;
-      if (p.url) text += `${p.url}\n`;
-      text += `\n`;
+    const criticas = p0.length;
+    const altas = p1.length;
+    const partes = [];
+    if (criticas > 0) partes.push(`${criticas} crítica${criticas !== 1 ? 's' : ''} (P0)`);
+    if (altas > 0) partes.push(`${altas} de alta prioridade (P1)`);
+    text += `Foram identificadas ${p0p1.length} proposições prioritárias: ${partes.join(' e ')}. `;
+
+    for (const p of p0p1.slice(0, 3)) {
+      text += `${p.sigla} ${p.numero}/${p.ano} (${p.casa}) — ${p.ementa.substring(0, 180).trim()}${p.ementa.length > 180 ? '...' : ''}. `;
+      text += `Eixo: ${p.eixo}. `;
     }
+    if (p0p1.length > 3) text += `Outras ${p0p1.length - 3} proposições prioritárias também foram registradas. `;
+    text += `\n\n`;
+  } else if (p2.length > 0) {
+    text += `Não foram identificadas proposições críticas (P0) ou de alta prioridade (P1) hoje. `;
+    text += `${p2.length} proposição(ões) em monitoramento (P2) na${casas.length > 1 ? 's casas' : ' ' + casas[0]}.\n\n`;
+  } else {
+    text += `Dia sem movimentação legislativa relevante para a pauta Sebrae nas proposições consultadas.\n\n`;
   }
 
-  if (p2.length > 0) {
-    text += `*Proposicoes em monitoramento (P2)*\n\n`;
-    for (const p of p2.slice(0, 10)) {
-      text += `• ${p.sigla} ${p.numero}/${p.ano} — ${p.ementa.substring(0, 80)}... — _P2_ — ${p.eixo}\n`;
+  if (p2.length > 0 && p0p1.length > 0) {
+    text += `Além das prioritárias, ${p2.length} proposições estão em monitoramento (P2), abrangendo temas como ${eixosOrdenados.slice(0, 3).map(e => e[0]).join(', ')}.\n\n`;
+  }
+
+  // O que significa para pequenos negócios
+  text += `O que significa para pequenos negócios?\n\n`;
+
+  if (p0p1.length > 0) {
+    const eixosPrio = [...new Set(p0p1.map(p => p.eixo))];
+    const papeis = [...new Set(p0p1.map(p => p.papel))].filter(p => p && p !== 'Arquivar');
+    text += `As proposições prioritárias tratam de ${eixosPrio.join(', ')} — temas com impacto direto nos pequenos negócios. `;
+    if (papeis.length > 0) {
+      text += `Papéis identificados para o Sebrae: ${papeis.join(', ')}. `;
     }
-    if (p2.length > 10) text += `_... e mais ${p2.length - 10} proposicoes P2_\n`;
+    text += `A tramitação dessas matérias merece acompanhamento próximo.\n\n`;
+  } else {
+    text += `Sem matérias de alto impacto identificadas hoje. Os eixos mais ativos foram: ${eixosOrdenados.slice(0, 3).map(e => `${e[0]} (${e[1]})`).join(', ') || 'nenhum'}.\n\n`;
+  }
+
+  // Pontos de atenção
+  text += `Pontos de atenção\n\n`;
+  const pontos = [];
+  for (const p of p0.slice(0, 2)) {
+    pontos.push(`${p.sigla} ${p.numero}/${p.ano}: ${p.impacto} — prioridade crítica (P0)`);
+  }
+  for (const p of p1.slice(0, 3)) {
+    pontos.push(`${p.sigla} ${p.numero}/${p.ano}: ${p.impacto} — prioridade alta (P1)`);
+  }
+  if (p2.length > 0) {
+    pontos.push(`${p2.length} proposições em monitoramento (P2) — acompanhar evolução`);
+  }
+  if (p3p4.length > 0) {
+    pontos.push(`${p3p4.length} proposições de baixa prioridade (P3/P4) identificadas, não detalhadas`);
+  }
+  const instit = allPropositions.filter(p => p.institucional === 'sim');
+  if (instit.length > 0) {
+    pontos.push(`${instit.length} proposição(ões) com menção institucional direta ao Sebrae ou sistema S`);
+  }
+  if (pontos.length === 0) pontos.push('Sem pontos críticos identificados hoje');
+  for (const p of pontos) {
+    text += `* ${p}\n`;
+  }
+  text += `\n`;
+
+  // Termômetro
+  const el = document.getElementById('thermometer');
+  const thermoText = el.textContent;
+  let thermoEmoji = '🟢';
+  if (el.classList.contains('thermo-red')) thermoEmoji = '🔴';
+  else if (el.classList.contains('thermo-orange')) thermoEmoji = '🟠';
+  else if (el.classList.contains('thermo-yellow')) thermoEmoji = '🟡';
+  text += `Termômetro: ${thermoEmoji} ${thermoText}\n\n`;
+
+  // Próximos desdobramentos
+  text += `Próximos desdobramentos: `;
+  const desdobramentos = [];
+  if (p0p1.length > 0) desdobramentos.push(`Acompanhar tramitação de ${p0p1.length} matéria(s) prioritária(s)`);
+  if (p2.length > 5) desdobramentos.push(`Monitorar ${p2.length} proposições em pauta`);
+  const eixosPrincipais = eixosOrdenados.slice(0, 2).map(e => e[0]);
+  if (eixosPrincipais.length > 0) desdobramentos.push(`Eixos em destaque: ${eixosPrincipais.join(', ')}`);
+  if (desdobramentos.length === 0) desdobramentos.push('Acompanhar pauta legislativa nos próximos dias');
+  text += desdobramentos.join(' · ') + `\n\n`;
+
+  // Rodapé
+  text += `—\n`;
+  text += `Fontes: API Dados Abertos da Câmara dos Deputados (dadosabertos.camara.leg.br) · API Dados Abertos do Senado Federal (legis.senado.leg.br)\n`;
+  if (p0p1.length > 0) {
+    text += `Links das proposições prioritárias: `;
+    text += p0p1.filter(p => p.url).slice(0, 5).map(p => `${p.sigla} ${p.numero}/${p.ano} (${p.url})`).join(', ');
     text += `\n`;
   }
-
-  const hasP0 = p0p1.some(p => p.prioridade === 'P0');
-  const hasP1 = p0p1.some(p => p.prioridade === 'P1');
-
-  let thermo;
-  if (hasP0) thermo = 'CRITICO — Proposicao critica identificada';
-  else if (hasP1) thermo = 'ALTO IMPACTO — Proposicao de alta prioridade';
-  else if (p2.length > 0) thermo = 'MODERADO — Proposicoes em monitoramento';
-  else thermo = 'TRANQUILO — Sem materia critica em pauta';
-
-  text += `*Termometro legislativo:* ${thermo}\n\n`;
-  text += `—\n`;
-  text += `_Fontes:_ API Dados Abertos da Camara dos Deputados · API Dados Abertos do Senado Federal\n`;
-  text += `_Proposicoes de baixa prioridade (P3/P4):_ ${p3p4.length} identificadas, nao detalhadas\n\n`;
-  text += `_Conteudo gerado com base em dados oficiais das APIs legislativas._`;
+  text += `\nConteúdo gerado por Inteligência Artificial (IA)`;
 
   document.getElementById('exportContent').textContent = text;
   document.getElementById('exportModal').classList.add('active');
