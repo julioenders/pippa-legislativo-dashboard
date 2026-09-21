@@ -752,6 +752,171 @@
       text-align: center;
       line-height: 1.6;
     }
+
+    /* Info button */
+    .info-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .info-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Methodology modal */
+    .methodology-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15,17,23,0.85);
+      z-index: 300;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 40px;
+      overflow-y: auto;
+    }
+    .methodology-backdrop.active { display: flex; }
+    .methodology-modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      max-width: 820px;
+      width: 92%;
+      margin-bottom: 40px;
+    }
+    .methodology-modal h2 { font-size: 20px; margin-bottom: 20px; color: var(--accent); }
+    .methodology-modal h3 { font-size: 15px; margin: 20px 0 8px; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+    .methodology-modal p, .methodology-modal li { font-size: 13px; line-height: 1.7; color: var(--text-muted); }
+    .methodology-modal ul { padding-left: 20px; margin-bottom: 12px; }
+    .priority-table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; }
+    .priority-table th, .priority-table td { padding: 10px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border); }
+    .priority-table th { color: var(--text); font-weight: 600; background: var(--surface2); }
+    .priority-table td { color: var(--text-muted); }
+    .priority-table .p-badge { display: inline-block; padding: 2px 10px; border-radius: 6px; font-weight: 700; font-size: 12px; }
+    .score-formula { background: var(--surface2); padding: 12px 16px; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 13px; color: var(--accent); margin: 12px 0; }
+
+    /* Author/Party */
+    .author-line {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .partido-badge {
+      font-size: 10px;
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      background: rgba(79,140,255,0.15);
+      color: var(--accent);
+    }
+
+    /* Tramitacao timeline */
+    .tramitacao-list {
+      max-height: 420px;
+      overflow-y: auto;
+      margin: 12px 0;
+    }
+    .tramitacao-item {
+      padding: 10px 16px;
+      border-left: 2px solid var(--border);
+      margin-left: 8px;
+      margin-bottom: 2px;
+      position: relative;
+    }
+    .tramitacao-item::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      position: absolute;
+      left: -5px;
+      top: 14px;
+    }
+    .tramitacao-date { font-size: 11px; color: var(--accent); font-weight: 600; }
+    .tramitacao-desc { font-size: 13px; color: var(--text-muted); margin-top: 2px; line-height: 1.5; }
+    .tramitacao-orgao { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-style: italic; }
+
+    /* Minuta tecnica */
+    .minuta-content {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      font-size: 13px;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      max-height: 500px;
+      overflow-y: auto;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    /* Action buttons in prop details */
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .btn-action {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-action:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Loading authors indicator */
+    .loading-authors {
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 8px 16px;
+      background: var(--surface2);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .loading-authors.active { display: flex; }
+    .mini-spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
+    /* Dynamic filter chips */
+    .filter-group-dynamic {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
@@ -763,6 +928,7 @@
         <div class="logo">PIPPA Legislativo</div>
         <div class="logo-sub">Plataforma de Inteligencia em Politicas Publicas Aplicadas</div>
       </div>
+      <button class="info-btn" onclick="showMethodology()" title="Metodologia de classificacao">&#8505;</button>
     </div>
     <div class="header-controls">
       <div id="thermometer" class="thermometer thermo-green">Sem dados carregados</div>
@@ -777,7 +943,7 @@
 
     <!-- Sidebar Filters -->
     <aside class="sidebar">
-      <input type="text" class="search-input" id="searchInput" placeholder="Buscar na ementa..." oninput="applyFilters()">
+      <input type="text" class="search-input" id="searchInput" placeholder="Buscar ementa, autor, partido ou lei..." oninput="applyFilters()">
 
       <!-- Prioridade -->
       <div class="filter-section" data-section="prioridade">
@@ -906,8 +1072,22 @@
         </div>
       </div>
 
+      <!-- Partido do Autor -->
+      <div class="filter-section" data-section="partido">
+        <div class="filter-header" onclick="toggleSection(this)">
+          <div class="filter-title">Partido do Autor <span class="filter-badge" id="badge-partido"></span></div>
+          <span class="filter-arrow">&#9660;</span>
+        </div>
+        <div class="filter-body">
+          <div class="filter-group-dynamic" id="filterPartido">
+            <span style="font-size:11px;color:var(--text-muted)">Carregue os dados para ver os partidos</span>
+          </div>
+          <span class="filter-clear" onclick="clearFilter('partido')">Limpar</span>
+        </div>
+      </div>
+
       <div class="sidebar-footer">
-        PIPPA Legislativo v1.0<br>
+        PIPPA Legislativo v2.0<br>
         Sebrae Nacional — Observatorio<br>
         APIs: Camara dos Deputados · Senado Federal
       </div>
@@ -980,6 +1160,12 @@
         </div>
       </div>
 
+      <!-- Loading authors -->
+      <div class="loading-authors" id="loadingAuthors">
+        <div class="mini-spinner"></div>
+        <span id="loadingAuthorsText">Buscando autores e partidos...</span>
+      </div>
+
       <!-- Propositions -->
       <div id="propContainer">
         <div class="empty-state">
@@ -1007,6 +1193,119 @@
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="closeModal()">Fechar</button>
         <button class="btn" onclick="copyExport()">Copiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Methodology Modal -->
+  <div class="methodology-backdrop" id="methodologyModal">
+    <div class="methodology-modal">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <h2>Metodologia de Classificacao PIPPA Legislativo</h2>
+        <button class="btn btn-outline" onclick="closeMethodologyModal()" style="flex-shrink:0">Fechar</button>
+      </div>
+
+      <h3>Niveis de Prioridade (P0 a P4)</h3>
+      <p>Cada proposicao legislativa e classificada automaticamente em um dos cinco niveis de prioridade, com base na analise semantica da ementa e no cruzamento com os criterios estrategicos do Sebrae:</p>
+      <table class="priority-table">
+        <thead><tr><th>Nivel</th><th>Nome</th><th>Criterio</th><th>Acao Esperada</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="p-badge" style="background:rgba(255,77,106,0.2);color:#ff4d6a">P0</span></td>
+            <td>Critica</td>
+            <td>Filtro institucional ativado — materia menciona governanca, orcamento, contribuicao compulsoria ou regime juridico do Sebrae/Sistema S</td>
+            <td>Incidencia ativa imediata</td>
+          </tr>
+          <tr>
+            <td><span class="p-badge" style="background:rgba(255,140,66,0.2);color:#ff8c42">P1</span></td>
+            <td>Alta</td>
+            <td>Relevancia Central (mencao direta a MEI, Simples Nacional, LC 123, MPE) ou Alta (2+ palavras-chave de eixos estrategicos)</td>
+            <td>Incidencia ativa ou monitoramento estrategico</td>
+          </tr>
+          <tr>
+            <td><span class="p-badge" style="background:rgba(255,197,66,0.2);color:#ffc542">P2</span></td>
+            <td>Media</td>
+            <td>Relevancia Media — exatamente 1 palavra-chave de eixo estrategico identificada na ementa</td>
+            <td>Subsidio tecnico e monitoramento</td>
+          </tr>
+          <tr>
+            <td><span class="p-badge" style="background:rgba(78,205,196,0.2);color:#4ecdc4">P3</span></td>
+            <td>Baixa</td>
+            <td>Relevancia Baixa — temas corporativos ou sociais amplos, sem conexao direta com MPE/empreendedorismo</td>
+            <td>Monitoramento passivo</td>
+          </tr>
+          <tr>
+            <td><span class="p-badge" style="background:rgba(139,143,168,0.2);color:#8b8fa8">P4</span></td>
+            <td>Arquivar</td>
+            <td>Relevancia Nula — sem palavras-chave identificadas, ou tipo processual/simbolico (REQ, RIC, mocoes, homenagens)</td>
+            <td>Fora do escopo — arquivar</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Como funciona a Pontuacao (Score)</h3>
+      <p>O score numerico reflete a intensidade da conexao tematica entre a proposicao e a agenda Sebrae. Ele e calculado pela formula:</p>
+      <div class="score-formula">Score = (palavras-chave nucleo × 3) + (palavras-chave de eixo × 1) + (palavras-chave institucionais × 4)</div>
+      <ul>
+        <li><strong>Nucleo (×3 pontos cada):</strong> Termos que tocam diretamente o ecossistema MPE — "simples nacional", "microempreendedor individual", "lei complementar 123", "microempresa", "empresa de pequeno porte", "MEI", "MPE", "EPP", "FAMPE"</li>
+        <li><strong>Eixos estrategicos (×1 ponto cada):</strong> Termos vinculados aos 8 eixos do Plano Estrategico — ambiente de negocios, credito, compras publicas, inovacao, educacao empreendedora, etc.</li>
+        <li><strong>Institucional (×4 pontos cada):</strong> Termos que indicam impacto direto na governanca ou orcamento do Sebrae/Sistema S — "contribuicao compulsoria", "lei 8029", "auditoria do sistema s", etc.</li>
+      </ul>
+
+      <h3>Niveis de Relevancia</h3>
+      <ul>
+        <li><strong>Central:</strong> Filtro institucional ativo OU palavra-chave nucleo encontrada</li>
+        <li><strong>Alta:</strong> 2 ou mais palavras-chave de eixos estrategicos</li>
+        <li><strong>Media:</strong> Exatamente 1 palavra-chave de eixo estrategico</li>
+        <li><strong>Baixa:</strong> Apenas termos corporativos ou sociais amplos</li>
+        <li><strong>Nula:</strong> Nenhuma palavra-chave identificada</li>
+      </ul>
+
+      <h3>Eixos Estrategicos (Plano Estrategico 2024-2027)</h3>
+      <ul>
+        <li><strong>MEI e Simples:</strong> Formalizacao, enquadramento, limites de receita, obrigacoes do MEI</li>
+        <li><strong>Credito e financiamento:</strong> Microcredito, FAMPE, fundo garantidor, inclusao financeira</li>
+        <li><strong>Compras publicas:</strong> Licitacoes, tratamento favorecido, pregao eletronico</li>
+        <li><strong>Inovacao e digital:</strong> Startups, IA, transformacao digital, propriedade intelectual</li>
+        <li><strong>Educacao empreendedora:</strong> Capacitacao, formacao gerencial, cultura empreendedora</li>
+        <li><strong>Desenvolvimento territorial:</strong> Bioeconomia, economia circular, arranjos produtivos locais</li>
+        <li><strong>Inclusao produtiva:</strong> Empreendedorismo feminino, jovem, periferico, economia solidaria</li>
+        <li><strong>Ambiente de negocios:</strong> Desburocratizacao, reforma tributaria, beneficio fiscal, IBS, CBS</li>
+      </ul>
+
+      <h3>Filtro Institucional</h3>
+      <p>Ativado quando a ementa menciona diretamente o Sebrae, Sistema S ou entidades associadas (SESI, SENAI, etc.) em contexto de governanca, orcamento, fiscalizacao ou regime juridico. A simples mencao do nome "Sebrae" sem contexto de governanca NAO ativa o filtro — isso evita falsos positivos.</p>
+
+      <h3>Fontes de Dados</h3>
+      <ul>
+        <li><strong>Camara dos Deputados:</strong> API Dados Abertos (dadosabertos.camara.leg.br/api/v2)</li>
+        <li><strong>Senado Federal:</strong> API Dados Abertos (legis.senado.leg.br/dadosabertos)</li>
+      </ul>
+      <p style="margin-top:16px;font-size:12px;color:var(--text-muted)">A classificacao automatica e uma pre-triagem por palavras-chave. A validacao final deve ser feita por um analista de politicas publicas.</p>
+    </div>
+  </div>
+
+  <!-- Tramitacao Modal -->
+  <div class="modal-backdrop" id="tramitacaoModal">
+    <div class="modal" style="max-width:700px">
+      <div class="modal-title" id="tramitacaoTitle">Historico de Tramitacao</div>
+      <div id="tramitacaoContent">
+        <div style="text-align:center;padding:20px;color:var(--text-muted)">Carregando tramitacoes...</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeTramitacaoModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Minuta Tecnica Modal -->
+  <div class="modal-backdrop" id="minutaModal">
+    <div class="modal" style="max-width:750px">
+      <div class="modal-title">Minuta Tecnica — Acao Recomendada</div>
+      <div class="minuta-content" id="minutaContent"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeMinutaModal()">Fechar</button>
+        <button class="btn" onclick="copyMinuta()">Copiar</button>
       </div>
     </div>
   </div>
@@ -1170,8 +1469,10 @@ const KEYWORDS_CORPORATIVO = [
 
 let allPropositions = [];
 let filteredPropositions = [];
-let activeFilters = { prioridade: [], relevancia: [], casa: [], eixo: [], impacto: [], papel: [], institucional: [] };
+let activeFilters = { prioridade: [], relevancia: [], casa: [], eixo: [], impacto: [], papel: [], institucional: [], partido: [] };
 let chartPrioridade, chartEixo, chartCasa;
+let deputadosCache = {};
+let autoresLoading = false;
 
 // Set today's date
 document.getElementById('dateInput').valueAsDate = new Date();
@@ -1451,6 +1752,7 @@ async function fetchSenado(date) {
           const numero = mat.NumeroMateria || '';
           const ano = mat.AnoMateria || year;
           const ementa = mat.EmentaMateria || mat.Ementa || '';
+          const nomeAutor = mat.NomeAutor || mat.AutorPrincipal || '';
 
           propositions.push({
             id: codigo,
@@ -1461,7 +1763,10 @@ async function fetchSenado(date) {
             casa: 'Senado',
             siglaTipo: siglaM,
             dataApresentacao: mat.DataApresentacao || mat.Data || date,
-            url: `https://www25.senado.leg.br/web/atividade/materias/-/materia/${codigo}`
+            url: `https://www.senado.leg.br/web/atividade/materias/-/materia/${codigo}`,
+            autor: nomeAutor || '',
+            partido: mat.SiglaPartidoAutor || '',
+            uf: mat.UfAutor || ''
           });
         }
       } catch (e) {
@@ -1495,6 +1800,92 @@ async function fetchComissoes(date) {
   return total;
 }
 
+async function fetchDeputados() {
+  if (Object.keys(deputadosCache).length > 0) return;
+  try {
+    const data = await fetchWithTimeout('https://dadosabertos.camara.leg.br/api/v2/deputados?itens=600&ordem=ASC&ordenarPor=nome', 30000);
+    if (data && data.dados) {
+      for (const dep of data.dados) {
+        deputadosCache[dep.id] = {
+          nome: dep.nome,
+          partido: dep.siglaPartido,
+          uf: dep.siglaUf
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Error fetching deputados:', e);
+  }
+}
+
+async function fetchAutoresBatch(propositions) {
+  const camaraProps = propositions.filter(p => p.casa === 'Camara');
+  if (camaraProps.length === 0) return;
+
+  const el = document.getElementById('loadingAuthors');
+  const textEl = document.getElementById('loadingAuthorsText');
+  el.classList.add('active');
+  autoresLoading = true;
+
+  const batchSize = 10;
+  let processed = 0;
+
+  for (let i = 0; i < camaraProps.length; i += batchSize) {
+    const batch = camaraProps.slice(i, i + batchSize);
+    const promises = batch.map(async (prop) => {
+      try {
+        const data = await fetchWithTimeout(
+          `https://dadosabertos.camara.leg.br/api/v2/proposicoes/${prop.id}/autores`, 15000
+        );
+        if (data && data.dados && data.dados.length > 0) {
+          const autor = data.dados[0];
+          prop.autor = autor.nome;
+          prop.tipoAutor = autor.tipo || '';
+
+          if (autor.uri && autor.uri.includes('/deputados/')) {
+            const depId = parseInt(autor.uri.split('/deputados/')[1]);
+            if (deputadosCache[depId]) {
+              prop.partido = deputadosCache[depId].partido;
+              prop.uf = deputadosCache[depId].uf;
+            }
+          }
+
+          if (data.dados.length > 1) {
+            prop.coautores = data.dados.slice(1).map(a => a.nome);
+          }
+        }
+      } catch (e) {
+        // Silently skip failed author fetches
+      }
+    });
+
+    await Promise.all(promises);
+    processed += batch.length;
+    textEl.textContent = `Buscando autores e partidos... ${processed}/${camaraProps.length}`;
+  }
+
+  autoresLoading = false;
+  el.classList.remove('active');
+  populatePartidoFilter();
+  renderPropositions();
+}
+
+function populatePartidoFilter() {
+  const container = document.getElementById('filterPartido');
+  const partidos = new Set();
+  for (const p of allPropositions) {
+    if (p.partido) partidos.add(p.partido);
+  }
+  const sorted = [...partidos].sort();
+  if (sorted.length === 0) {
+    container.innerHTML = '<span style="font-size:11px;color:var(--text-muted)">Nenhum partido identificado</span>';
+    return;
+  }
+  container.innerHTML = sorted.map(p =>
+    `<span class="filter-chip" data-filter="partido" data-value="${p}" onclick="toggleFilter(this)">${p}</span>`
+  ).join('');
+}
+
 async function fetchData() {
   const date = document.getElementById('dateInput').value;
   if (!date) { alert('Selecione uma data.'); return; }
@@ -1508,7 +1899,8 @@ async function fetchData() {
     const [camaraProps, senadoProps, comissoesAtivas] = await Promise.all([
       fetchCamara(date),
       fetchSenado(date),
-      fetchComissoes(date)
+      fetchComissoes(date),
+      fetchDeputados()
     ]);
 
     showLoading('Classificando proposicoes...', 'Aplicando filtros de relevancia Sebrae...');
@@ -1537,6 +1929,8 @@ async function fetchData() {
     updateThermometer();
 
     hideLoading();
+
+    fetchAutoresBatch(allPropositions);
 
   } catch (e) {
     console.error('Fetch error:', e);
@@ -1599,7 +1993,7 @@ function toggleSection(header) {
 }
 
 function updateFilterBadges() {
-  const filters = ['prioridade','relevancia','casa','eixo','impacto','papel','institucional'];
+  const filters = ['prioridade','relevancia','casa','eixo','impacto','papel','institucional','partido'];
   filters.forEach(f => {
     const badge = document.getElementById('badge-' + f);
     if (!badge) return;
@@ -1642,8 +2036,13 @@ function applyFilters() {
   const search = normalize(document.getElementById('searchInput').value);
 
   filteredPropositions = allPropositions.filter(prop => {
-    if (search && !normalize(prop.ementa).includes(search) &&
-        !normalize(`${prop.sigla} ${prop.numero}/${prop.ano}`).includes(search)) return false;
+    if (search) {
+      const matchEmenta = normalize(prop.ementa).includes(search);
+      const matchSigla = normalize(`${prop.sigla} ${prop.numero}/${prop.ano}`).includes(search);
+      const matchAutor = normalize(prop.autor || '').includes(search);
+      const matchPartido = normalize(prop.partido || '').includes(search);
+      if (!matchEmenta && !matchSigla && !matchAutor && !matchPartido) return false;
+    }
 
     if (activeFilters.prioridade.length && !activeFilters.prioridade.includes(prop.prioridade)) return false;
     if (activeFilters.relevancia.length && !activeFilters.relevancia.includes(prop.relevancia)) return false;
@@ -1652,6 +2051,7 @@ function applyFilters() {
     if (activeFilters.impacto.length && !activeFilters.impacto.includes(prop.impacto)) return false;
     if (activeFilters.papel.length && !activeFilters.papel.includes(prop.papel)) return false;
     if (activeFilters.institucional.length && !activeFilters.institucional.includes(prop.institucional)) return false;
+    if (activeFilters.partido.length && !activeFilters.partido.includes(prop.partido || '')) return false;
 
     return true;
   });
@@ -1719,6 +2119,12 @@ function renderPropCard(prop) {
     `<span class="prop-tag">${k}</span>`
   ).join('');
 
+  const autorHtml = prop.autor ? `
+    <div class="author-line">
+      ${escapeHtml(prop.autor)}
+      ${prop.partido ? `<span class="partido-badge">${escapeHtml(prop.partido)}${prop.uf ? '/' + escapeHtml(prop.uf) : ''}</span>` : ''}
+    </div>` : '';
+
   return `
     <div class="prop-card" id="prop-${prop.id}">
       <div class="prop-header" onclick="toggleProp('${prop.id}')">
@@ -1728,6 +2134,7 @@ function renderPropCard(prop) {
             ${prop.sigla} ${prop.numero}/${prop.ano}
             <span class="prop-casa ${casaClass}">${prop.casa}</span>
           </div>
+          ${autorHtml}
           <div class="prop-ementa">${escapeHtml(prop.ementa)}</div>
           <div class="prop-tags">
             <span class="prop-tag prop-tag-relevancia">${prop.relevancia}</span>
@@ -1755,14 +2162,28 @@ function renderPropCard(prop) {
             <span class="detail-label">Score Relevancia</span>
             <span class="detail-value">${prop.score} pontos</span>
           </div>
+          ${prop.autor ? `<div class="detail-item">
+            <span class="detail-label">Autor(a)</span>
+            <span class="detail-value">${escapeHtml(prop.autor)}${prop.coautores && prop.coautores.length > 0 ? ' e +' + prop.coautores.length + ' coautor(es)' : ''}</span>
+          </div>` : ''}
+          ${prop.partido ? `<div class="detail-item">
+            <span class="detail-label">Partido / UF</span>
+            <span class="detail-value">${escapeHtml(prop.partido)}${prop.uf ? ' / ' + escapeHtml(prop.uf) : ''}</span>
+          </div>` : ''}
           <div class="detail-item" style="grid-column: 1 / -1">
             <span class="detail-label">Ementa Completa</span>
             <span class="detail-value">${escapeHtml(prop.ementa)}</span>
           </div>
           ${prop.url ? `<div class="detail-item">
             <span class="detail-label">Link Oficial</span>
-            <span class="detail-value"><a href="${prop.url}" target="_blank" rel="noopener" style="color:var(--accent)">${prop.url.length > 60 ? prop.url.substring(0, 60) + '...' : prop.url}</a></span>
+            <span class="detail-value"><a href="${prop.url}" target="_blank" rel="noopener" style="color:var(--accent)">${prop.url.length > 60 ? prop.url.substring(0, 60) + '...' : prop.url} &#8599;</a></span>
           </div>` : ''}
+        </div>
+
+        <div class="action-buttons">
+          <button class="btn-action" onclick="event.stopPropagation(); openTramitacoes('${prop.id}', '${prop.casa}')">&#128195; Historico de Tramitacao</button>
+          <button class="btn-action" onclick="event.stopPropagation(); generateMinuta('${prop.id}')">&#128221; Gerar Minuta Tecnica</button>
+          ${prop.url ? `<a href="${prop.url}" target="_blank" rel="noopener" class="btn-action" onclick="event.stopPropagation()" style="text-decoration:none">&#128279; Acessar Materia</a>` : ''}
         </div>
 
         <div class="classification-editor">
@@ -2075,6 +2496,7 @@ function exportWhatsApp() {
 
     for (const p of p0p1.slice(0, 3)) {
       text += `${p.sigla} ${p.numero}/${p.ano} (${p.casa}) — ${p.ementa.substring(0, 180).trim()}${p.ementa.length > 180 ? '...' : ''}. `;
+      if (p.autor) text += `Autor(a): ${p.autor}${p.partido ? ' (' + p.partido + (p.uf ? '/' + p.uf : '') + ')' : ''}. `;
       text += `Eixo: ${p.eixo}. `;
     }
     if (p0p1.length > 3) text += `Outras ${p0p1.length - 3} proposições prioritárias também foram registradas. `;
@@ -2187,6 +2609,197 @@ function showToast(msg) {
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2500);
 }
+
+// Methodology modal
+function showMethodology() {
+  document.getElementById('methodologyModal').classList.add('active');
+}
+function closeMethodologyModal() {
+  document.getElementById('methodologyModal').classList.remove('active');
+}
+
+// Tramitacao modal
+async function openTramitacoes(id, casa) {
+  const modal = document.getElementById('tramitacaoModal');
+  const content = document.getElementById('tramitacaoContent');
+  const title = document.getElementById('tramitacaoTitle');
+  const prop = allPropositions.find(p => String(p.id) === String(id));
+
+  title.textContent = `Historico de Tramitacao — ${prop ? prop.sigla + ' ' + prop.numero + '/' + prop.ano : id}`;
+  content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)"><div class="mini-spinner" style="margin:0 auto 8px"></div>Carregando tramitacoes...</div>';
+  modal.classList.add('active');
+
+  try {
+    let tramitacoes = [];
+
+    if (casa === 'Camara') {
+      const data = await fetchWithTimeout(
+        `https://dadosabertos.camara.leg.br/api/v2/proposicoes/${id}/tramitacoes?ordem=DESC&ordenarPor=dataHora`, 20000
+      );
+      if (data && data.dados) {
+        tramitacoes = data.dados.map(t => ({
+          data: t.dataHora ? t.dataHora.split('T')[0] : '',
+          descricao: t.descricaoTramitacao || t.despacho || '',
+          orgao: t.siglaOrgao || '',
+          situacao: t.descricaoSituacao || ''
+        }));
+      }
+    } else {
+      const data = await fetchWithTimeout(
+        `https://legis.senado.leg.br/dadosabertos/materia/movimentacoes/${id}`, 20000
+      );
+      if (data) {
+        const movs = data?.MovimentacaoMateria?.Materia?.Autuacoes?.Autuacao ||
+                     data?.MovimentacaoMateria?.Materia?.MovimentacaoMateria?.Tramitacoes?.Tramitacao || [];
+        const list = Array.isArray(movs) ? movs : [movs];
+        tramitacoes = list.map(m => ({
+          data: m.DataTramitacao || m.Data || '',
+          descricao: m.DescricaoTramitacao || m.TextoTramitacao || m.Descricao || '',
+          orgao: m.OrigemTramitacao?.SiglaLocal || m.Local || '',
+          situacao: m.SituacaoTramitacao || ''
+        })).filter(t => t.descricao);
+      }
+    }
+
+    if (tramitacoes.length === 0) {
+      content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)">Nenhuma tramitacao encontrada para esta materia.</div>';
+      return;
+    }
+
+    content.innerHTML = `
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">${tramitacoes.length} movimentacao(oes) encontrada(s)</div>
+      <div class="tramitacao-list">
+        ${tramitacoes.map(t => `
+          <div class="tramitacao-item">
+            <div class="tramitacao-date">${t.data}</div>
+            <div class="tramitacao-desc">${escapeHtml(t.descricao)}</div>
+            ${t.orgao ? `<div class="tramitacao-orgao">${escapeHtml(t.orgao)}${t.situacao ? ' — ' + escapeHtml(t.situacao) : ''}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>`;
+  } catch (e) {
+    content.innerHTML = `<div style="text-align:center;padding:20px;color:var(--p0)">Erro ao carregar tramitacoes: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function closeTramitacaoModal() {
+  document.getElementById('tramitacaoModal').classList.remove('active');
+}
+
+// Minuta tecnica
+function generateMinuta(id) {
+  const prop = allPropositions.find(p => String(p.id) === String(id));
+  if (!prop) return;
+
+  const date = new Date().toLocaleDateString('pt-BR');
+  const acaoSelect = document.getElementById(`cls-acao-${id}`);
+  const acao = acaoSelect ? acaoSelect.value : 'Elaborar nota tecnica';
+
+  let minuta = `NOTA TECNICA\n`;
+  minuta += `Sebrae Nacional — Unidade de Gestao Estrategica\n`;
+  minuta += `Data: ${date}\n`;
+  minuta += `${'='.repeat(60)}\n\n`;
+
+  minuta += `MATERIA: ${prop.sigla} ${prop.numero}/${prop.ano}\n`;
+  minuta += `CASA: ${prop.casa === 'Camara' ? 'Camara dos Deputados' : 'Senado Federal'}\n`;
+  minuta += `DATA APRESENTACAO: ${prop.dataApresentacao}\n`;
+  if (prop.autor) minuta += `AUTOR(A): ${prop.autor}\n`;
+  if (prop.partido) minuta += `PARTIDO/UF: ${prop.partido}${prop.uf ? '/' + prop.uf : ''}\n`;
+  if (prop.url) minuta += `LINK: ${prop.url}\n`;
+  minuta += `\n`;
+
+  minuta += `CLASSIFICACAO PIPPA\n`;
+  minuta += `${'-'.repeat(40)}\n`;
+  minuta += `Prioridade: ${prop.prioridade}\n`;
+  minuta += `Relevancia: ${prop.relevancia}\n`;
+  minuta += `Eixo Estrategico: ${prop.eixo}\n`;
+  minuta += `Tipo de Impacto: ${prop.impacto}\n`;
+  minuta += `Papel do Sebrae: ${prop.papel}\n`;
+  minuta += `Filtro Institucional: ${prop.institucional === 'sim' ? 'Sim' : 'Nao'}\n`;
+  minuta += `Score: ${prop.score} pontos\n`;
+  if (prop.allMatched && prop.allMatched.length > 0) {
+    minuta += `Palavras-chave: ${prop.allMatched.join(', ')}\n`;
+  }
+  minuta += `\n`;
+
+  minuta += `EMENTA\n`;
+  minuta += `${'-'.repeat(40)}\n`;
+  minuta += `${prop.ementa}\n\n`;
+
+  minuta += `ACAO RECOMENDADA: ${acao}\n`;
+  minuta += `${'-'.repeat(40)}\n\n`;
+
+  if (acao.includes('nota tecnica') || acao.includes('Articular')) {
+    minuta += `1. CONTEXTO E JUSTIFICATIVA\n`;
+    minuta += `[Descrever o contexto da proposicao e por que exige atencao do Sebrae]\n\n`;
+    minuta += `2. ANALISE DE MERITO\n`;
+    minuta += `[Analisar os impactos diretos e indiretos sobre MPE, MEI e o ecossistema de pequenos negocios]\n\n`;
+    minuta += `3. POSICIONAMENTO RECOMENDADO\n`;
+    minuta += `[Indicar posicao institucional: favoravel, favoravel com ressalvas, contrario, neutro com monitoramento]\n\n`;
+    minuta += `4. ENCAMINHAMENTOS\n`;
+    minuta += `[Listar proximos passos concretos: reunioes, articulacoes, notas de apoio, emendas sugeridas]\n\n`;
+  } else if (acao.includes('Monitorar')) {
+    minuta += `1. SINTESE\n`;
+    minuta += `[Resumo dos pontos relevantes para acompanhamento]\n\n`;
+    minuta += `2. GATILHOS DE ESCALACAO\n`;
+    minuta += `[Definir condicoes que elevariam a prioridade desta materia]\n\n`;
+    minuta += `3. PRAZO DE REVISAO\n`;
+    minuta += `[Definir quando esta materia sera reavaliada]\n\n`;
+  } else if (acao.includes('comissao') || acao.includes('relatoria')) {
+    minuta += `1. COMISSAO/RELATORIA\n`;
+    minuta += `[Identificar comissao responsavel e relator designado]\n\n`;
+    minuta += `2. PAUTA E CRONOGRAMA\n`;
+    minuta += `[Verificar agenda da comissao e datas previstas]\n\n`;
+    minuta += `3. ARTICULACAO NECESSARIA\n`;
+    minuta += `[Definir interlocucoes prioritarias]\n\n`;
+  } else {
+    minuta += `1. OBSERVACOES\n`;
+    minuta += `[Registrar observacoes relevantes sobre esta materia]\n\n`;
+  }
+
+  minuta += `${'='.repeat(60)}\n`;
+  minuta += `Gerado por PIPPA Legislativo — Sebrae Nacional\n`;
+  minuta += `Classificacao automatica sujeita a validacao por analista`;
+
+  document.getElementById('minutaContent').textContent = minuta;
+  document.getElementById('minutaModal').classList.add('active');
+}
+
+function closeMinutaModal() {
+  document.getElementById('minutaModal').classList.remove('active');
+}
+
+function copyMinuta() {
+  const text = document.getElementById('minutaContent').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Minuta copiada!');
+  }).catch(() => {
+    const range = document.createRange();
+    range.selectNode(document.getElementById('minutaContent'));
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand('copy');
+    showToast('Minuta copiada!');
+  });
+}
+
+// Close modals on backdrop click
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'methodologyModal') closeMethodologyModal();
+  if (e.target.id === 'tramitacaoModal') closeTramitacaoModal();
+  if (e.target.id === 'minutaModal') closeMinutaModal();
+  if (e.target.id === 'exportModal') closeModal();
+});
+
+// Close modals on Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeMethodologyModal();
+    closeTramitacaoModal();
+    closeMinutaModal();
+    closeModal();
+  }
+});
 
 // Initialize charts with empty data
 window.addEventListener('DOMContentLoaded', () => {
