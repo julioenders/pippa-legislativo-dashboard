@@ -909,6 +909,54 @@
       flex-shrink: 0;
     }
 
+    /* Merito economico */
+    .merito-section {
+      background: linear-gradient(135deg, rgba(79,140,255,0.08), rgba(168,85,247,0.08));
+      border: 1px solid rgba(79,140,255,0.2);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-top: 12px;
+    }
+    .merito-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .merito-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+    .merito-stat {
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .merito-stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+    .merito-stat-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+    .merito-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      font-style: italic;
+    }
+
     /* Dynamic filter chips */
     .filter-group-dynamic {
       display: flex;
@@ -1473,6 +1521,19 @@ let activeFilters = { prioridade: [], relevancia: [], casa: [], eixo: [], impact
 let chartPrioridade, chartEixo, chartCasa;
 let deputadosCache = {};
 let autoresLoading = false;
+let rfData = null;
+
+const EIXO_TO_SETOR = {
+  'MEI e Simples': ['21','31','11'],
+  'Credito e financiamento': ['21','31'],
+  'Compras publicas': ['21','61','11'],
+  'Inovacao e digital': ['31'],
+  'Educacao empreendedora': ['31'],
+  'Desenvolvimento territorial': ['41','11'],
+  'Inclusao produtiva': ['31','21'],
+  'Ambiente de negocios': ['21','31','11','61'],
+  'Setorial/corporativa': ['31'],
+};
 
 // Set today's date
 document.getElementById('dateInput').valueAsDate = new Date();
@@ -2186,6 +2247,8 @@ function renderPropCard(prop) {
           ${prop.url ? `<a href="${prop.url}" target="_blank" rel="noopener" class="btn-action" onclick="event.stopPropagation()" style="text-decoration:none">&#128279; Acessar Materia</a>` : ''}
         </div>
 
+        ${buildMeritoSection(prop)}
+
         <div class="classification-editor">
           <div class="class-title">Classificacao — 10 Criterios Sebrae</div>
           <div class="class-grid">
@@ -2783,6 +2846,94 @@ function copyMinuta() {
   });
 }
 
+// RF data loading
+async function loadRfData() {
+  try {
+    const resp = await fetch('data/rf_empresas.json');
+    if (resp.ok) {
+      rfData = await resp.json();
+      console.log('RF data loaded:', rfData._meta?.gerado_em);
+    }
+  } catch (e) {
+    console.warn('RF data not available:', e.message);
+  }
+}
+
+function formatNum(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1).replace('.', ',') + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1).replace('.', ',') + 'K';
+  return Math.round(n).toLocaleString('pt-BR');
+}
+
+function buildMeritoSection(prop) {
+  if (!rfData || !rfData.resumo) return '';
+
+  const resumo = rfData.resumo;
+  const setores = rfData.setores || {};
+
+  const totalMPE = (resumo.por_porte['Micro Empresário Individual (MEI)'] || 0)
+    + (resumo.por_porte['Microempresa (ME)'] || 0)
+    + (resumo.por_porte['Empresa de Pequeno Porte (EPP)'] || 0);
+
+  const setorIds = EIXO_TO_SETOR[prop.eixo] || [];
+  let setorNome = '';
+  let setorTotal = 0;
+  let setorMEI = 0;
+  let setorME = 0;
+  let setorEPP = 0;
+
+  for (const sid of setorIds) {
+    if (setores[sid]) {
+      if (!setorNome) setorNome = setores[sid].nome;
+      setorTotal += setores[sid].total || 0;
+      const p = setores[sid].portes || {};
+      setorMEI += p['Micro Empresário Individual (MEI)'] || 0;
+      setorME += p['Microempresa (ME)'] || 0;
+      setorEPP += p['Empresa de Pequeno Porte (EPP)'] || 0;
+    }
+  }
+
+  if (prop.eixo === 'Sem conexao' || prop.prioridade === 'P4') return '';
+
+  const impactoPercent = setorTotal > 0 ? ((setorTotal / resumo.total_empresas) * 100).toFixed(1) : '0';
+
+  let html = `<div class="merito-section">
+    <div class="merito-title">&#128202; Merito Economico — Dados Receita Federal</div>
+    <div class="merito-grid">
+      <div class="merito-stat">
+        <div class="merito-stat-value">${formatNum(totalMPE)}</div>
+        <div class="merito-stat-label">MPEs Ativas Brasil</div>
+      </div>
+      <div class="merito-stat">
+        <div class="merito-stat-value">${formatNum(resumo.por_porte['Micro Empresário Individual (MEI)'] || 0)}</div>
+        <div class="merito-stat-label">MEIs</div>
+      </div>`;
+
+  if (setorTotal > 0) {
+    html += `
+      <div class="merito-stat">
+        <div class="merito-stat-value" style="color:var(--accent)">${formatNum(setorTotal)}</div>
+        <div class="merito-stat-label">${escapeHtml(setorNome)}</div>
+      </div>
+      <div class="merito-stat">
+        <div class="merito-stat-value">${impactoPercent}%</div>
+        <div class="merito-stat-label">do Total Nacional</div>
+      </div>`;
+  }
+
+  html += `</div>`;
+
+  if (setorTotal > 0) {
+    const setorMPE = setorMEI + setorME + setorEPP;
+    html += `<div class="merito-note">Setor vinculado ao eixo "${escapeHtml(prop.eixo)}": ${formatNum(setorMPE)} MPEs (${formatNum(setorMEI)} MEI + ${formatNum(setorME)} ME + ${formatNum(setorEPP)} EPP). Fonte: Receita Federal via Observatorio Sebrae (${rfData._meta?.gerado_em?.split('T')[0] || 'snapshot'}).</div>`;
+  } else {
+    html += `<div class="merito-note">Total de MPEs ativas no Brasil: ${formatNum(totalMPE)}. Eixo "${escapeHtml(prop.eixo)}" afeta transversalmente o ecossistema de pequenos negocios. Fonte: Receita Federal via Observatorio Sebrae.</div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
 // Close modals on backdrop click
 document.addEventListener('click', (e) => {
   if (e.target.id === 'methodologyModal') closeMethodologyModal();
@@ -2801,9 +2952,10 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Initialize charts with empty data
+// Initialize
 window.addEventListener('DOMContentLoaded', () => {
   updateCharts();
+  loadRfData();
 });
 </script>
 
