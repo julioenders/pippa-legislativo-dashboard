@@ -953,6 +953,69 @@
       letter-spacing: 0.5px;
       margin-top: 4px;
     }
+    .merito-subtitle {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      margin-top: 14px;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(79,140,255,0.15);
+    }
+    .merito-bar-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .merito-bar-item {
+      flex: 1;
+      min-width: 120px;
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 8px 10px;
+      text-align: center;
+    }
+    .merito-bar-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .merito-bar-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+    .merito-cnae-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .merito-cnae-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+    .merito-cnae-id {
+      color: var(--accent);
+      font-weight: 600;
+      margin-right: 8px;
+      font-size: 11px;
+    }
+    .merito-cnae-nome {
+      flex: 1;
+      color: var(--text);
+    }
+    .merito-cnae-total {
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
     .merito-note {
       font-size: 11px;
       color: var(--text-muted);
@@ -1566,6 +1629,30 @@ const EIXO_TO_SETOR = {
   'Inclusao produtiva': ['31','21'],
   'Ambiente de negocios': ['21','31','11','61'],
   'Setorial/corporativa': ['31'],
+};
+
+const SETOR_TO_CNAE_PREFIX = {
+  '11': ['C'], '12': ['B'], '13': ['D'], '21': ['G'],
+  '31': ['H','I','J','K','L','M','N','O','P','Q','R','S','T'],
+  '41': ['A'], '61': ['F']
+};
+
+const STATE_TO_REGION = {
+  'Rondônia':'Norte','Acre':'Norte','Amazonas':'Norte','Roraima':'Norte',
+  'Pará':'Norte','Amapá':'Norte','Tocantins':'Norte',
+  'Maranhão':'Nordeste','Piauí':'Nordeste','Ceará':'Nordeste',
+  'Rio Grande do Norte':'Nordeste','Paraíba':'Nordeste','Pernambuco':'Nordeste',
+  'Alagoas':'Nordeste','Sergipe':'Nordeste','Bahia':'Nordeste',
+  'Minas Gerais':'Sudeste','Espírito Santo':'Sudeste','Rio de Janeiro':'Sudeste','São Paulo':'Sudeste',
+  'Paraná':'Sul','Santa Catarina':'Sul','Rio Grande do Sul':'Sul',
+  'Mato Grosso do Sul':'Centro-Oeste','Mato Grosso':'Centro-Oeste','Goiás':'Centro-Oeste','Distrito Federal':'Centro-Oeste'
+};
+
+const MACRO_SETORES = {
+  'Comercio': { label: 'Comercio', keys: ['Comércio'] },
+  'Servicos': { label: 'Servicos', keys: ['Serviço', 'Construção'] },
+  'Industria': { label: 'Industria', keys: ['Industria Transformação', 'Extrativa Mineral', 'SIUP - Serviços Industrias De Utilidade Pública'] },
+  'Agronegocio': { label: 'Agronegocio', keys: ['Agropecuária'] }
 };
 
 // Set today's date
@@ -3070,69 +3157,111 @@ function formatNum(n) {
 
 function buildMeritoSection(prop) {
   if (!rfData || !rfData.resumo) return '';
+  if (prop.prioridade !== 'P0' && prop.prioridade !== 'P1') return '';
+  if (prop.eixo === 'Sem conexao') return '';
 
   const resumo = rfData.resumo;
   const setores = rfData.setores || {};
+  const estados = rfData.estados || {};
+  const divisoes = rfData.divisoes || [];
 
   const totalMPE = (resumo.por_porte['Micro Empresário Individual (MEI)'] || 0)
     + (resumo.por_porte['Microempresa (ME)'] || 0)
     + (resumo.por_porte['Empresa de Pequeno Porte (EPP)'] || 0);
 
   const setorIds = EIXO_TO_SETOR[prop.eixo] || [];
-  let setorNome = '';
+  let setorPrincipal = '';
   let setorTotal = 0;
-  let setorMEI = 0;
-  let setorME = 0;
-  let setorEPP = 0;
-
   for (const sid of setorIds) {
     if (setores[sid]) {
-      if (!setorNome) setorNome = setores[sid].nome;
+      if (!setorPrincipal) setorPrincipal = setores[sid].nome;
       setorTotal += setores[sid].total || 0;
-      const p = setores[sid].portes || {};
-      setorMEI += p['Micro Empresário Individual (MEI)'] || 0;
-      setorME += p['Microempresa (ME)'] || 0;
-      setorEPP += p['Empresa de Pequeno Porte (EPP)'] || 0;
     }
   }
-
-  if (prop.eixo === 'Sem conexao' || prop.prioridade === 'P4') return '';
-
   const impactoPercent = setorTotal > 0 ? ((setorTotal / resumo.total_empresas) * 100).toFixed(1) : '0';
 
+  // Macro setores
+  const porSetor = resumo.por_setor || {};
+  const macroTotals = {};
+  for (const [key, cfg] of Object.entries(MACRO_SETORES)) {
+    macroTotals[key] = cfg.keys.reduce((sum, k) => sum + (porSetor[k] || 0), 0);
+  }
+
+  // CNAEs afetados pelo eixo
+  const cnaePrefixes = new Set();
+  for (const sid of setorIds) {
+    (SETOR_TO_CNAE_PREFIX[sid] || []).forEach(p => cnaePrefixes.add(p));
+  }
+  const cnaesAfetados = divisoes
+    .filter(d => cnaePrefixes.has(d.id.charAt(0)))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+
+  // Regioes
+  const regiaoTotals = { 'Norte': 0, 'Nordeste': 0, 'Sudeste': 0, 'Sul': 0, 'Centro-Oeste': 0 };
+  for (const [estado, data] of Object.entries(estados)) {
+    const regiao = STATE_TO_REGION[estado];
+    if (regiao) regiaoTotals[regiao] += data.total || 0;
+  }
+  const regiaoOrder = Object.entries(regiaoTotals).sort((a, b) => b[1] - a[1]);
+
   let html = `<div class="merito-section">
-    <div class="merito-title">&#128202; Merito Economico — Dados Receita Federal</div>
+    <div class="merito-title">&#128202; Merito Economico — Analise Detalhada (${escapeHtml(prop.prioridade)})</div>
     <div class="merito-grid">
       <div class="merito-stat">
         <div class="merito-stat-value">${formatNum(totalMPE)}</div>
         <div class="merito-stat-label">MPEs Ativas Brasil</div>
       </div>
       <div class="merito-stat">
-        <div class="merito-stat-value">${formatNum(resumo.por_porte['Micro Empresário Individual (MEI)'] || 0)}</div>
-        <div class="merito-stat-label">MEIs</div>
-      </div>`;
-
-  if (setorTotal > 0) {
-    html += `
-      <div class="merito-stat">
         <div class="merito-stat-value" style="color:var(--accent)">${formatNum(setorTotal)}</div>
-        <div class="merito-stat-label">${escapeHtml(setorNome)}</div>
+        <div class="merito-stat-label">${escapeHtml(setorPrincipal || 'Transversal')}</div>
       </div>
       <div class="merito-stat">
         <div class="merito-stat-value">${impactoPercent}%</div>
         <div class="merito-stat-label">do Total Nacional</div>
-      </div>`;
-  }
+      </div>
+    </div>`;
 
+  // Setores
+  html += `<div class="merito-subtitle">Impacto por Setor</div>
+    <div class="merito-bar-row">`;
+  const setorColors = { 'Comercio': '#4f8cff', 'Servicos': '#a855f7', 'Industria': '#ff8c42', 'Agronegocio': '#22c55e' };
+  for (const [key, cfg] of Object.entries(MACRO_SETORES)) {
+    html += `<div class="merito-bar-item">
+      <div class="merito-bar-value" style="color:${setorColors[key]}">${formatNum(macroTotals[key])}</div>
+      <div class="merito-bar-label">${cfg.label}</div>
+    </div>`;
+  }
   html += `</div>`;
 
-  if (setorTotal > 0) {
-    const setorMPE = setorMEI + setorME + setorEPP;
-    html += `<div class="merito-note">Setor vinculado ao eixo "${escapeHtml(prop.eixo)}": ${formatNum(setorMPE)} MPEs (${formatNum(setorMEI)} MEI + ${formatNum(setorME)} ME + ${formatNum(setorEPP)} EPP). Fonte: Receita Federal via Observatorio Sebrae (${rfData._meta?.gerado_em?.split('T')[0] || 'snapshot'}).</div>`;
-  } else {
-    html += `<div class="merito-note">Total de MPEs ativas no Brasil: ${formatNum(totalMPE)}. Eixo "${escapeHtml(prop.eixo)}" afeta transversalmente o ecossistema de pequenos negocios. Fonte: Receita Federal via Observatorio Sebrae.</div>`;
+  // CNAEs
+  if (cnaesAfetados.length > 0) {
+    html += `<div class="merito-subtitle">Principais CNAEs Afetados (Eixo: ${escapeHtml(prop.eixo)})</div>
+      <div class="merito-cnae-list">`;
+    for (const cnae of cnaesAfetados) {
+      const nome = cnae.nome.length > 50 ? cnae.nome.substring(0, 50) + '...' : cnae.nome;
+      html += `<div class="merito-cnae-item">
+        <span class="merito-cnae-id">${escapeHtml(cnae.id)}</span>
+        <span class="merito-cnae-nome">${escapeHtml(nome)}</span>
+        <span class="merito-cnae-total">${formatNum(cnae.total)} empresas</span>
+      </div>`;
+    }
+    html += `</div>`;
   }
 
+  // Regioes
+  html += `<div class="merito-subtitle">Volume de Empresas por Regiao</div>
+    <div class="merito-bar-row">`;
+  const regiaoColors = { 'Sudeste': '#4f8cff', 'Nordeste': '#ff8c42', 'Sul': '#22c55e', 'Centro-Oeste': '#a855f7', 'Norte': '#ffc542' };
+  for (const [regiao, total] of regiaoOrder) {
+    html += `<div class="merito-bar-item">
+      <div class="merito-bar-value" style="color:${regiaoColors[regiao] || '#8b8fa8'}">${formatNum(total)}</div>
+      <div class="merito-bar-label">${regiao}</div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  html += `<div class="merito-note">Fonte: Receita Federal via Observatorio Sebrae (${rfData._meta?.gerado_em?.split('T')[0] || 'snapshot'}). Analise restrita a proposicoes ${escapeHtml(prop.prioridade)}.</div>`;
   html += `</div>`;
   return html;
 }
