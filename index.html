@@ -1276,6 +1276,10 @@
           <div class="kpi-value kpi-tipo" id="kpiRDF">—</div>
           <div class="kpi-label">RDF</div>
         </div>
+        <div class="kpi-card-sm">
+          <div class="kpi-value kpi-tipo" id="kpiPPP">—</div>
+          <div class="kpi-label">PPP</div>
+        </div>
       </div>
 
       <!-- Charts -->
@@ -2234,6 +2238,7 @@ function updateKPIs(camaraTotal, senadoTotal) {
   document.getElementById('kpiRIC').textContent = countByTipo('RIC');
   document.getElementById('kpiPPD').textContent = countByTipo('PPD');
   document.getElementById('kpiRDF').textContent = countByTipo('RDF');
+  document.getElementById('kpiPPP').textContent = countByTipo('PPP');
 }
 
 function updateThermometer() {
