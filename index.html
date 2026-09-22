@@ -311,8 +311,8 @@
 
     .kpi-bar-secondary {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      gap: 8px;
       margin-bottom: 24px;
     }
 
@@ -333,7 +333,6 @@
     }
 
     .kpi-tipo { color: var(--accent); }
-    .kpi-comissoes { color: #f59e0b; }
 
     /* Charts */
     .charts-row {
@@ -1168,27 +1167,47 @@
         </div>
       </div>
 
-      <!-- KPI Tipos -->
+      <!-- KPI Tipos (ordem hierarquica) -->
       <div class="kpi-bar-secondary">
         <div class="kpi-card-sm">
-          <div class="kpi-value kpi-tipo" id="kpiPL">—</div>
-          <div class="kpi-label">PL</div>
+          <div class="kpi-value kpi-tipo" id="kpiPEC">—</div>
+          <div class="kpi-label">PEC</div>
         </div>
         <div class="kpi-card-sm">
           <div class="kpi-value kpi-tipo" id="kpiPLP">—</div>
           <div class="kpi-label">PLP</div>
         </div>
         <div class="kpi-card-sm">
-          <div class="kpi-value kpi-tipo" id="kpiPEC">—</div>
-          <div class="kpi-label">PEC</div>
+          <div class="kpi-value kpi-tipo" id="kpiPL">—</div>
+          <div class="kpi-label">PL</div>
         </div>
         <div class="kpi-card-sm">
-          <div class="kpi-value kpi-tipo" id="kpiMPV">—</div>
-          <div class="kpi-label">MPV</div>
+          <div class="kpi-value kpi-tipo" id="kpiPDL">—</div>
+          <div class="kpi-label">PDL</div>
         </div>
         <div class="kpi-card-sm">
-          <div class="kpi-value kpi-comissoes" id="kpiComissoes">—</div>
-          <div class="kpi-label">Comissoes Ativas</div>
+          <div class="kpi-value kpi-tipo" id="kpiPRL">—</div>
+          <div class="kpi-label">PRL</div>
+        </div>
+        <div class="kpi-card-sm">
+          <div class="kpi-value kpi-tipo" id="kpiEMR">—</div>
+          <div class="kpi-label">EMR</div>
+        </div>
+        <div class="kpi-card-sm">
+          <div class="kpi-value kpi-tipo" id="kpiREQ">—</div>
+          <div class="kpi-label">REQ</div>
+        </div>
+        <div class="kpi-card-sm">
+          <div class="kpi-value kpi-tipo" id="kpiRIC">—</div>
+          <div class="kpi-label">RIC</div>
+        </div>
+        <div class="kpi-card-sm">
+          <div class="kpi-value kpi-tipo" id="kpiPPD">—</div>
+          <div class="kpi-label">PPD</div>
+        </div>
+        <div class="kpi-card-sm">
+          <div class="kpi-value kpi-tipo" id="kpiMDF">—</div>
+          <div class="kpi-label">MDF</div>
         </div>
       </div>
 
@@ -1205,6 +1224,10 @@
         <div class="chart-card">
           <div class="chart-title">Por Casa Legislativa</div>
           <div class="chart-wrapper"><canvas id="chartCasa"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Comissoes Ativas</div>
+          <div class="chart-wrapper"><canvas id="chartComissoes"></canvas></div>
         </div>
       </div>
 
@@ -1518,7 +1541,8 @@ const KEYWORDS_CORPORATIVO = [
 let allPropositions = [];
 let filteredPropositions = [];
 let activeFilters = { prioridade: [], relevancia: [], casa: [], eixo: [], impacto: [], papel: [], institucional: [], partido: [] };
-let chartPrioridade, chartEixo, chartCasa;
+let chartPrioridade, chartEixo, chartCasa, chartComissoes;
+let comissoesData = { permanentes: 0, temporarias: 0 };
 let deputadosCache = {};
 let autoresLoading = false;
 let rfData = null;
@@ -1840,7 +1864,8 @@ async function fetchSenado(date) {
 }
 
 async function fetchComissoes(date) {
-  let total = 0;
+  let permanentes = 0;
+  let temporarias = 0;
 
   try {
     const [perm, temp] = await Promise.all([
@@ -1853,12 +1878,13 @@ async function fetchComissoes(date) {
       return data.dados.filter(o => !o.dataFim || o.dataFim >= date).length;
     };
 
-    total = filterActive(perm) + filterActive(temp);
+    permanentes = filterActive(perm);
+    temporarias = filterActive(temp);
   } catch (e) {
     console.warn('Error fetching comissoes:', e);
   }
 
-  return total;
+  return { permanentes, temporarias };
 }
 
 async function fetchDeputados() {
@@ -1957,12 +1983,14 @@ async function fetchData() {
   try {
     showLoading('Iniciando consulta...', '');
 
-    const [camaraProps, senadoProps, comissoesAtivas] = await Promise.all([
+    const [camaraProps, senadoProps, comissoesResult] = await Promise.all([
       fetchCamara(date),
       fetchSenado(date),
       fetchComissoes(date),
       fetchDeputados()
     ]);
+
+    comissoesData = comissoesResult;
 
     showLoading('Classificando proposicoes...', 'Aplicando filtros de relevancia Sebrae...');
 
@@ -1984,7 +2012,7 @@ async function fetchData() {
       return (prioOrder[a.prioridade] || 5) - (prioOrder[b.prioridade] || 5);
     });
 
-    updateKPIs(camaraProps.length, senadoProps.length, comissoesAtivas);
+    updateKPIs(camaraProps.length, senadoProps.length);
     applyFilters();
     updateCharts();
     updateThermometer();
@@ -2002,7 +2030,7 @@ async function fetchData() {
   btn.disabled = false;
 }
 
-function updateKPIs(camaraTotal, senadoTotal, comissoesAtivas) {
+function updateKPIs(camaraTotal, senadoTotal) {
   document.getElementById('kpiCamara').textContent = camaraTotal;
   document.getElementById('kpiSenado').textContent = senadoTotal;
 
@@ -2019,11 +2047,16 @@ function updateKPIs(camaraTotal, senadoTotal, comissoesAtivas) {
     return s === tipo;
   }).length;
 
-  document.getElementById('kpiPL').textContent = countByTipo('PL');
-  document.getElementById('kpiPLP').textContent = countByTipo('PLP');
   document.getElementById('kpiPEC').textContent = countByTipo('PEC');
-  document.getElementById('kpiMPV').textContent = countByTipo('MPV');
-  document.getElementById('kpiComissoes').textContent = comissoesAtivas || 0;
+  document.getElementById('kpiPLP').textContent = countByTipo('PLP');
+  document.getElementById('kpiPL').textContent = countByTipo('PL');
+  document.getElementById('kpiPDL').textContent = countByTipo('PDL');
+  document.getElementById('kpiPRL').textContent = countByTipo('PRL');
+  document.getElementById('kpiEMR').textContent = countByTipo('EMR');
+  document.getElementById('kpiREQ').textContent = countByTipo('REQ');
+  document.getElementById('kpiRIC').textContent = countByTipo('RIC');
+  document.getElementById('kpiPPD').textContent = countByTipo('PPD');
+  document.getElementById('kpiMDF').textContent = countByTipo('MDF');
 }
 
 function updateThermometer() {
@@ -2511,6 +2544,38 @@ function updateCharts() {
       maintainAspectRatio: false,
       plugins: {
         legend: { position: 'right', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } }
+      }
+    }
+  });
+
+  // Comissoes chart
+  if (chartComissoes) chartComissoes.destroy();
+  const totalComissoes = comissoesData.permanentes + comissoesData.temporarias;
+  chartComissoes = new Chart(document.getElementById('chartComissoes'), {
+    type: 'doughnut',
+    data: {
+      labels: [
+        `Permanentes (${comissoesData.permanentes})`,
+        `Temporarias (${comissoesData.temporarias})`
+      ],
+      datasets: [{
+        data: [comissoesData.permanentes, comissoesData.temporarias],
+        backgroundColor: ['#f59e0b', '#fb923c'],
+        borderColor: '#1a1d27',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } },
+        title: {
+          display: true,
+          text: `Total: ${totalComissoes}`,
+          color: '#8b8fa8',
+          font: { size: 12 }
+        }
       }
     }
   });
