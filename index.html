@@ -2205,7 +2205,7 @@ async function fetchAutoresBatch(propositions) {
   autoresLoading = false;
   el.classList.remove('active');
   populatePartidoFilter();
-  renderPropositions();
+  applyFilters();
 }
 
 function populatePartidoFilter() {
@@ -2290,7 +2290,6 @@ async function fetchData() {
 
     updateKPIs(camaraTotal, senadoTotal);
     applyFilters();
-    updateCharts();
     updateThermometer();
 
     hideLoading();
@@ -2334,20 +2333,20 @@ function updateKPIs(camaraTotal, senadoTotal) {
   document.getElementById('kpiCriticas').textContent = criticas;
   document.getElementById('kpiMonitorar').textContent = monitorar;
 
-  const allData = [...allPropositions, ...allAcessorios];
-  const countByTipo = (tipo) => allData.filter(p => (p.siglaTipo || '').toUpperCase() === tipo).length;
+  const countProp = (tipo) => source.filter(p => (p.siglaTipo || '').toUpperCase() === tipo).length;
+  const countAces = (tipo) => allAcessorios.filter(p => (p.siglaTipo || '').toUpperCase() === tipo).length;
 
-  document.getElementById('kpiPEC').textContent = countByTipo('PEC');
-  document.getElementById('kpiPLP').textContent = countByTipo('PLP');
-  document.getElementById('kpiPL').textContent = countByTipo('PL');
-  document.getElementById('kpiPDL').textContent = countByTipo('PDL');
-  document.getElementById('kpiPRL').textContent = countByTipo('PRL');
-  document.getElementById('kpiEMR').textContent = countByTipo('EMR');
-  document.getElementById('kpiREQ').textContent = countByTipo('REQ');
-  document.getElementById('kpiRIC').textContent = countByTipo('RIC');
-  document.getElementById('kpiPPD').textContent = countByTipo('PPD');
-  document.getElementById('kpiRDF').textContent = countByTipo('RDF');
-  document.getElementById('kpiPPP').textContent = countByTipo('PPP');
+  document.getElementById('kpiPEC').textContent = countProp('PEC');
+  document.getElementById('kpiPLP').textContent = countProp('PLP');
+  document.getElementById('kpiPL').textContent = countProp('PL');
+  document.getElementById('kpiPDL').textContent = countProp('PDL');
+  document.getElementById('kpiPRL').textContent = countAces('PRL');
+  document.getElementById('kpiEMR').textContent = countAces('EMR');
+  document.getElementById('kpiREQ').textContent = countAces('REQ');
+  document.getElementById('kpiRIC').textContent = countAces('RIC');
+  document.getElementById('kpiPPD').textContent = countAces('PPD');
+  document.getElementById('kpiRDF').textContent = countAces('RDF');
+  document.getElementById('kpiPPP').textContent = countAces('PPP');
 
   // Painel estrategico
   const partidoCount = {};
@@ -2789,7 +2788,9 @@ function escapeHtml(text) {
 
 // Charts
 function updateCharts() {
-  const data = filteredPropositions.length > 0 ? filteredPropositions : allPropositions;
+  const hasActiveFilter = Object.values(activeFilters).some(f => f.length > 0) ||
+    (document.getElementById('searchInput') && document.getElementById('searchInput').value.trim().length > 0);
+  const data = hasActiveFilter ? filteredPropositions : allPropositions;
 
   const prioCounts = { P0: 0, P1: 0, P2: 0, P3: 0, P4: 0 };
   const eixoCounts = {};
