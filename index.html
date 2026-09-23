@@ -1046,7 +1046,9 @@
     </div>
     <div class="header-controls">
       <div id="thermometer" class="thermometer thermo-green">Sem dados carregados</div>
-      <input type="date" id="dateInput" class="date-input" title="Data de consulta">
+      <input type="date" id="dateInputInicio" class="date-input" title="Data inicio">
+      <span style="color:var(--text-muted);font-size:13px">a</span>
+      <input type="date" id="dateInputFim" class="date-input" title="Data fim">
       <button class="btn" id="btnFetch" onclick="fetchData()">Consultar APIs</button>
       <button class="btn btn-outline" onclick="exportWhatsApp()">Exportar WhatsApp</button>
     </div>
@@ -1234,7 +1236,8 @@
         </div>
       </div>
 
-      <!-- KPI Tipos (ordem hierarquica) -->
+      <!-- KPI Tipos — Proposicoes legislativas -->
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:600">Proposicoes Legislativas</div>
       <div class="kpi-bar-secondary">
         <div class="kpi-card-sm">
           <div class="kpi-value kpi-tipo" id="kpiPEC">—</div>
@@ -1252,6 +1255,11 @@
           <div class="kpi-value kpi-tipo" id="kpiPDL">—</div>
           <div class="kpi-label">PDL</div>
         </div>
+      </div>
+
+      <!-- KPI Tipos — Documentos acessorios (nao classificados) -->
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;margin-top:8px;font-weight:600">Documentos Acessorios <span style="font-weight:400;text-transform:none">(nao classificados)</span></div>
+      <div class="kpi-bar-secondary">
         <div class="kpi-card-sm">
           <div class="kpi-value kpi-tipo" id="kpiPRL">—</div>
           <div class="kpi-label">PRL</div>
@@ -1279,6 +1287,27 @@
         <div class="kpi-card-sm">
           <div class="kpi-value kpi-tipo" id="kpiPPP">—</div>
           <div class="kpi-label">PPP</div>
+        </div>
+      </div>
+
+      <!-- Painel Estrategico -->
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;margin-top:8px;font-weight:600">Painel Estrategico</div>
+      <div class="kpi-bar-secondary">
+        <div class="kpi-card-sm" style="min-width:140px">
+          <div class="kpi-value kpi-tipo" id="kpiPartidoTop" style="font-size:14px">—</div>
+          <div class="kpi-label">Partido mais ativo</div>
+        </div>
+        <div class="kpi-card-sm" style="min-width:140px">
+          <div class="kpi-value kpi-tipo" id="kpiEixoTop" style="font-size:14px">—</div>
+          <div class="kpi-label">Eixo em destaque</div>
+        </div>
+        <div class="kpi-card-sm" style="min-width:120px">
+          <div class="kpi-value kpi-tipo" id="kpiGrauAlto">—</div>
+          <div class="kpi-label">Impacto Alto+</div>
+        </div>
+        <div class="kpi-card-sm" style="min-width:120px">
+          <div class="kpi-value kpi-tipo" id="kpiAcessorios">—</div>
+          <div class="kpi-label">Acessorios (excl.)</div>
         </div>
       </div>
 
@@ -1660,7 +1689,11 @@ const MACRO_SETORES = {
 };
 
 // Set today's date
-document.getElementById('dateInput').valueAsDate = new Date();
+const TIPOS_PROPOSICAO = ['PEC', 'PLP', 'PL', 'PDC', 'PDL', 'MPV'];
+const TIPOS_ACESSORIO = ['PRL', 'EMR', 'EMP', 'EMC', 'REQ', 'RIC', 'REC', 'RCP', 'MOC', 'INC', 'DVS', 'RQS', 'AVS', 'PPP', 'RDF', 'PPD', 'MSC', 'SBT', 'SBR'];
+
+document.getElementById('dateInputInicio').valueAsDate = new Date();
+document.getElementById('dateInputFim').valueAsDate = new Date();
 
 function normalize(text) {
   if (!text) return '';
@@ -1832,8 +1865,26 @@ function classifyRelevance(ementa, sigla) {
 
   const score = matchedCore.length * 3 + totalEixoMatches + matchedInstitutional.length * 4;
 
+  // Grau de impacto Siga Lei (criterion 5A)
+  let grauSigaLei;
+  if (impacto === 'Direto MPE/MEI' && (relevancia === 'Central' || institucional === 'sim')) {
+    grauSigaLei = 'Muito alto';
+  } else if (impacto === 'Direto MPE/MEI' || impacto === 'Direto Sebrae') {
+    grauSigaLei = 'Alto';
+  } else if (impacto === 'Indireto') {
+    grauSigaLei = 'Medio';
+  } else if (impacto === 'Setorial' || impacto === 'Corporativo/profissional') {
+    grauSigaLei = 'Baixo';
+  } else {
+    grauSigaLei = 'Sem impacto';
+  }
+
+  // Posicionamento Sebrae (criterion 5B) — default neutro, editavel pelo usuario
+  const posicionamento = 'Neutro / em analise';
+
   return {
     relevancia, prioridade, eixo, impacto, papel, institucional, score,
+    grauSigaLei, posicionamento,
     matchedPrimary: matchedCore,
     matchedSecondary: Object.values(matchedEixoMap).flat(),
     matchedInstitutional, allMatched
@@ -1869,15 +1920,15 @@ async function fetchWithTimeout(url, timeout = 30000) {
   }
 }
 
-async function fetchCamara(date) {
-  showLoading('Consultando Camara dos Deputados...', 'Buscando proposicoes apresentadas...');
+async function fetchCamara(dateStart, dateEnd) {
+  showLoading('Consultando Camara dos Deputados...', `Buscando proposicoes de ${dateStart} a ${dateEnd}...`);
 
   let propositions = [];
   let page = 1;
   let hasMore = true;
 
   while (hasMore) {
-    const url = `https://dadosabertos.camara.leg.br/api/v2/proposicoes?dataApresentacaoInicio=${date}&dataApresentacaoFim=${date}&itens=100&pagina=${page}&ordem=DESC&ordenarPor=id`;
+    const url = `https://dadosabertos.camara.leg.br/api/v2/proposicoes?dataApresentacaoInicio=${dateStart}&dataApresentacaoFim=${dateEnd}&itens=100&pagina=${page}&ordem=DESC&ordenarPor=id`;
     const data = await fetchWithTimeout(url);
 
     if (!data || !data.dados || data.dados.length === 0) {
@@ -1893,7 +1944,7 @@ async function fetchCamara(date) {
           casa: 'Camara',
           uri: prop.uri,
           siglaTipo: prop.siglaTipo,
-          dataApresentacao: date,
+          dataApresentacao: (prop.dataApresentacao || dateStart).substring(0, 10),
           url: `https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${prop.id}`
         });
       }
@@ -1906,19 +1957,20 @@ async function fetchCamara(date) {
   return propositions;
 }
 
-async function fetchSenado(date) {
+async function fetchSenado(dateStart, dateEnd) {
   showLoading('Consultando Senado Federal...', 'Buscando materias em tramitacao...');
 
   let propositions = [];
-  const year = date.split('-')[0];
-  const dateCompact = date.replace(/-/g, '');
-  const siglas = ['pl', 'plp', 'pec', 'mpv'];
+  const year = dateStart.split('-')[0];
+  const dateCompactStart = dateStart.replace(/-/g, '');
+  const dateCompactEnd = dateEnd.replace(/-/g, '');
+  const siglas = ['pl', 'plp', 'pec', 'mpv', 'pdl'];
 
   for (let i = 0; i < siglas.length; i++) {
     const sigla = siglas[i];
-    showLoading('Consultando Senado Federal...', `Buscando ${sigla.toUpperCase()}s de ${date}... (${i+1}/${siglas.length})`);
+    showLoading('Consultando Senado Federal...', `Buscando ${sigla.toUpperCase()}s de ${dateStart} a ${dateEnd}... (${i+1}/${siglas.length})`);
 
-    const url = `https://legis.senado.leg.br/dadosabertos/materia/pesquisa/lista?sigla=${sigla}&ano=${year}&dataInicioApresentacao=${dateCompact}&dataFimApresentacao=${dateCompact}&tramitando=S`;
+    const url = `https://legis.senado.leg.br/dadosabertos/materia/pesquisa/lista?sigla=${sigla}&ano=${year}&dataInicioApresentacao=${dateCompactStart}&dataFimApresentacao=${dateCompactEnd}&tramitando=S`;
     const data = await fetchWithTimeout(url);
 
     if (data) {
@@ -2152,40 +2204,60 @@ function populatePartidoFilter() {
   ).join('');
 }
 
+let allAcessorios = [];
+
 async function fetchData() {
-  const date = document.getElementById('dateInput').value;
-  if (!date) { alert('Selecione uma data.'); return; }
+  const dateStart = document.getElementById('dateInputInicio').value;
+  const dateEnd = document.getElementById('dateInputFim').value;
+  if (!dateStart || !dateEnd) { alert('Selecione data inicio e data fim.'); return; }
+  if (dateEnd < dateStart) { alert('Data fim deve ser >= data inicio.'); return; }
 
   const btn = document.getElementById('btnFetch');
   btn.disabled = true;
 
   try {
-    showLoading('Iniciando consulta...', '');
+    showLoading('Iniciando consulta...', `Periodo: ${dateStart} a ${dateEnd}`);
 
     const [camaraProps, senadoProps, comissoesResult, , weeklyTrend] = await Promise.all([
-      fetchCamara(date),
-      fetchSenado(date),
-      fetchComissoes(date),
+      fetchCamara(dateStart, dateEnd),
+      fetchSenado(dateStart, dateEnd),
+      fetchComissoes(dateEnd),
       fetchDeputados(),
-      fetchWeeklyTrend(date)
+      fetchWeeklyTrend(dateEnd)
     ]);
 
     comissoesData = comissoesResult;
     tendenciaData = weeklyTrend;
 
-    showLoading('Classificando proposicoes...', 'Aplicando filtros de relevancia Sebrae...');
+    showLoading('Classificando proposicoes...', 'Separando proposicoes de documentos acessorios...');
 
     allPropositions = [];
+    allAcessorios = [];
 
     const allRaw = [...camaraProps, ...senadoProps];
 
     for (const prop of allRaw) {
-      const classification = classifyRelevance(prop.ementa, prop.siglaTipo);
-      allPropositions.push({
-        ...prop,
-        ...classification,
-        date: date
-      });
+      const siglaUpper = (prop.siglaTipo || '').toUpperCase();
+      const isProposicao = TIPOS_PROPOSICAO.includes(siglaUpper);
+
+      if (isProposicao) {
+        const classification = classifyRelevance(prop.ementa, prop.siglaTipo);
+        allPropositions.push({
+          ...prop,
+          ...classification,
+          tipoDocumental: 'proposicao',
+          date: dateStart === dateEnd ? dateStart : `${dateStart} a ${dateEnd}`
+        });
+      } else {
+        allAcessorios.push({
+          ...prop,
+          tipoDocumental: 'acessorio',
+          prioridade: 'P4',
+          relevancia: 'Nula',
+          score: 0,
+          date: dateStart === dateEnd ? dateStart : `${dateStart} a ${dateEnd}`
+        });
+      }
     }
 
     allPropositions.sort((a, b) => {
@@ -2193,7 +2265,10 @@ async function fetchData() {
       return (prioOrder[a.prioridade] || 5) - (prioOrder[b.prioridade] || 5);
     });
 
-    updateKPIs(camaraProps.length, senadoProps.length);
+    const camaraTotal = allRaw.filter(p => p.casa === 'Camara').length;
+    const senadoTotal = allRaw.filter(p => p.casa === 'Senado').length;
+
+    updateKPIs(camaraTotal, senadoTotal);
     applyFilters();
     updateCharts();
     updateThermometer();
@@ -2211,22 +2286,36 @@ async function fetchData() {
   btn.disabled = false;
 }
 
-function updateKPIs(camaraTotal, senadoTotal) {
-  document.getElementById('kpiCamara').textContent = camaraTotal;
-  document.getElementById('kpiSenado').textContent = senadoTotal;
+let _camaraTotalRaw = 0;
+let _senadoTotalRaw = 0;
 
-  const relevantes = allPropositions.filter(p => p.score > 0).length;
-  const criticas = allPropositions.filter(p => p.prioridade === 'P0' || p.prioridade === 'P1').length;
-  const monitorar = allPropositions.filter(p => p.prioridade === 'P2').length;
+function updateKPIs(camaraTotal, senadoTotal) {
+  if (camaraTotal !== undefined) _camaraTotalRaw = camaraTotal;
+  if (senadoTotal !== undefined) _senadoTotalRaw = senadoTotal;
+
+  const hasActiveFilter = Object.values(activeFilters).some(f => f.length > 0) ||
+    (document.getElementById('searchInput') && document.getElementById('searchInput').value.trim().length > 0);
+
+  const source = hasActiveFilter ? filteredPropositions : allPropositions;
+
+  if (hasActiveFilter) {
+    document.getElementById('kpiCamara').textContent = source.filter(p => p.casa === 'Camara').length;
+    document.getElementById('kpiSenado').textContent = source.filter(p => p.casa === 'Senado').length;
+  } else {
+    document.getElementById('kpiCamara').textContent = _camaraTotalRaw;
+    document.getElementById('kpiSenado').textContent = _senadoTotalRaw;
+  }
+
+  const relevantes = source.filter(p => p.score > 0).length;
+  const criticas = source.filter(p => p.prioridade === 'P0' || p.prioridade === 'P1').length;
+  const monitorar = source.filter(p => p.prioridade === 'P2').length;
 
   document.getElementById('kpiRelevantes').textContent = relevantes;
   document.getElementById('kpiCriticas').textContent = criticas;
   document.getElementById('kpiMonitorar').textContent = monitorar;
 
-  const countByTipo = (tipo) => allPropositions.filter(p => {
-    const s = (p.siglaTipo || '').toUpperCase();
-    return s === tipo;
-  }).length;
+  const allData = [...allPropositions, ...allAcessorios];
+  const countByTipo = (tipo) => allData.filter(p => (p.siglaTipo || '').toUpperCase() === tipo).length;
 
   document.getElementById('kpiPEC').textContent = countByTipo('PEC');
   document.getElementById('kpiPLP').textContent = countByTipo('PLP');
@@ -2239,6 +2328,22 @@ function updateKPIs(camaraTotal, senadoTotal) {
   document.getElementById('kpiPPD').textContent = countByTipo('PPD');
   document.getElementById('kpiRDF').textContent = countByTipo('RDF');
   document.getElementById('kpiPPP').textContent = countByTipo('PPP');
+
+  // Painel estrategico
+  const partidoCount = {};
+  source.forEach(p => { if (p.partido) partidoCount[p.partido] = (partidoCount[p.partido] || 0) + 1; });
+  const topPartido = Object.entries(partidoCount).sort((a, b) => b[1] - a[1])[0];
+  document.getElementById('kpiPartidoTop').textContent = topPartido ? `${topPartido[0]} (${topPartido[1]})` : '—';
+
+  const eixoCount = {};
+  source.forEach(p => { if (p.eixo && p.eixo !== 'Sem conexao') eixoCount[p.eixo] = (eixoCount[p.eixo] || 0) + 1; });
+  const topEixo = Object.entries(eixoCount).sort((a, b) => b[1] - a[1])[0];
+  document.getElementById('kpiEixoTop').textContent = topEixo ? topEixo[0] : '—';
+
+  const grauAlto = source.filter(p => p.grauSigaLei === 'Muito alto' || p.grauSigaLei === 'Alto').length;
+  document.getElementById('kpiGrauAlto').textContent = grauAlto;
+
+  document.getElementById('kpiAcessorios').textContent = allAcessorios.length;
 }
 
 function updateThermometer() {
@@ -2332,6 +2437,7 @@ function applyFilters() {
     return true;
   });
 
+  updateKPIs();
   renderPropositions();
   updateCharts();
 }
@@ -2415,6 +2521,8 @@ function renderPropCard(prop) {
           <div class="prop-tags">
             <span class="prop-tag prop-tag-relevancia">${prop.relevancia}</span>
             <span class="prop-tag prop-tag-eixo">${prop.eixo}</span>
+            <span class="prop-tag" style="background:${prop.grauSigaLei === 'Muito alto' || prop.grauSigaLei === 'Alto' ? 'rgba(255,77,106,0.15);color:#ff4d6a' : prop.grauSigaLei === 'Medio' ? 'rgba(255,197,66,0.15);color:#ffc542' : 'rgba(139,143,168,0.15);color:#8b8fa8'}">${prop.grauSigaLei}</span>
+            ${(prop.prioridade === 'P0' || prop.prioridade === 'P1') ? `<span class="prop-tag" style="background:rgba(79,141,255,0.15);color:var(--accent)">${prop.posicionamento}</span>` : ''}
             ${keywords}
           </div>
         </div>
@@ -2578,7 +2686,28 @@ function renderPropCard(prop) {
                 <option ${prop.institucional === 'nao' ? 'selected' : ''}>Nao</option>
               </select>
             </div>
+            <div class="class-field">
+              <label>5A. Grau Impacto (Siga Lei)</label>
+              <select id="cls-grau-${prop.id}" onchange="updateClassification('${prop.id}')">
+                <option ${prop.grauSigaLei === 'Muito alto' ? 'selected' : ''}>Muito alto</option>
+                <option ${prop.grauSigaLei === 'Alto' ? 'selected' : ''}>Alto</option>
+                <option ${prop.grauSigaLei === 'Medio' ? 'selected' : ''}>Medio</option>
+                <option ${prop.grauSigaLei === 'Baixo' ? 'selected' : ''}>Baixo</option>
+                <option ${prop.grauSigaLei === 'Sem impacto' ? 'selected' : ''}>Sem impacto</option>
+              </select>
+            </div>
+            <div class="class-field">
+              <label>5B. Posicionamento Sebrae</label>
+              <select id="cls-posicionamento-${prop.id}" onchange="updateClassification('${prop.id}')">
+                <option ${prop.posicionamento === 'Favoravel' ? 'selected' : ''}>Favoravel</option>
+                <option ${prop.posicionamento === 'Favoravel com ressalvas' ? 'selected' : ''}>Favoravel com ressalvas</option>
+                <option ${prop.posicionamento === 'Contrario' ? 'selected' : ''}>Contrario</option>
+                <option ${prop.posicionamento === 'Neutro / em analise' ? 'selected' : ''}>Neutro / em analise</option>
+                <option ${prop.posicionamento === 'Nao aplicavel' ? 'selected' : ''}>Nao aplicavel</option>
+              </select>
+            </div>
           </div>
+          ${(prop.prioridade === 'P0' || prop.prioridade === 'P1') ? '<div style="margin:8px 0;padding:8px 12px;background:rgba(255,197,66,0.1);border-left:3px solid var(--p2);border-radius:4px;font-size:12px;color:var(--p2)">&#9888; Classificacao P0/P1 requer validacao humana antes de decisao institucional</div>' : ''}
           <button class="btn btn-save-class" onclick="saveClassification('${prop.id}')">Salvar Classificacao</button>
         </div>
       </div>
@@ -2607,6 +2736,11 @@ function updateClassification(id) {
   if (impactoSelect) prop.impacto = impactoSelect.value;
   if (papelSelect) prop.papel = papelSelect.value;
   if (instSelect) prop.institucional = instSelect.value;
+
+  const grauSelect = document.getElementById(`cls-grau-${id}`);
+  const posSelect = document.getElementById(`cls-posicionamento-${id}`);
+  if (grauSelect) prop.grauSigaLei = grauSelect.value;
+  if (posSelect) prop.posicionamento = posSelect.value;
 }
 
 function saveClassification(id) {
@@ -2813,11 +2947,15 @@ function updateCharts() {
 
 // Export to WhatsApp format
 function exportWhatsApp() {
-  const date = document.getElementById('dateInput').value;
+  const dateStart = document.getElementById('dateInputInicio').value;
+  const dateEnd = document.getElementById('dateInputFim').value;
   if (!allPropositions.length) { alert('Consulte os dados primeiro.'); return; }
 
-  const dateObj = new Date(date + 'T12:00:00');
-  const dateStr = dateObj.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dateObjStart = new Date(dateStart + 'T12:00:00');
+  const dateObjEnd = new Date(dateEnd + 'T12:00:00');
+  const dateStrStart = dateObjStart.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dateStrEnd = dateObjEnd.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dateStr = dateStart === dateEnd ? dateStrStart : `${dateStrStart} a ${dateStrEnd}`;
 
   const camaraTotal = allPropositions.filter(p => p.casa === 'Camara').length;
   const senadoTotal = allPropositions.filter(p => p.casa === 'Senado').length;
@@ -2836,13 +2974,25 @@ function exportWhatsApp() {
   if (camaraTotal > 0) casas.push('Câmara');
   if (senadoTotal > 0) casas.push('Senado');
 
-  let text = `PIPPA — Plataforma de Inteligência em Políticas Públicas Aplicadas\n\n`;
-  text += `Monitor Legislativo\n`;
+  let text = `*PIPPA — Plataforma de Inteligência em Políticas Públicas Aplicadas*\n`;
+  text += `*Monitor Legislativo*\n`;
   text += `${dateStr}\n`;
-  text += `2 bases consultadas (Câmara e Senado) · ${allPropositions.length} proposições identificadas · ${relevantes} relevantes para o Sebrae\n\n`;
+  text += `${allPropositions.length} proposições analisadas · ${allAcessorios.length} documentos acessórios (excluídos) · ${relevantes} relevantes para o Sebrae\n\n`;
 
-  // O que aconteceu hoje
-  text += `O que aconteceu hoje?\n\n`;
+  // Painel estrategico
+  text += `*Painel Estratégico*\n\n`;
+  const partidoCount = {};
+  allPropositions.forEach(p => { if (p.partido) partidoCount[p.partido] = (partidoCount[p.partido] || 0) + 1; });
+  const topPartido = Object.entries(partidoCount).sort((a, b) => b[1] - a[1])[0];
+  const grauAlto = allPropositions.filter(p => p.grauSigaLei === 'Muito alto' || p.grauSigaLei === 'Alto').length;
+  text += `• Câmara: ${camaraTotal} · Senado: ${senadoTotal}\n`;
+  text += `• P0+P1: ${p0p1.length} · P2: ${p2.length} · P3/P4: ${p3p4.length}\n`;
+  text += `• Impacto Alto+: ${grauAlto} proposições\n`;
+  if (topPartido) text += `• Partido mais ativo: ${topPartido[0]} (${topPartido[1]})\n`;
+  text += `\n`;
+
+  // O que aconteceu
+  text += `*O que aconteceu no período?*\n\n`;
 
   if (p0p1.length > 0) {
     const criticas = p0.length;
@@ -2853,17 +3003,21 @@ function exportWhatsApp() {
     text += `Foram identificadas ${p0p1.length} proposições prioritárias: ${partes.join(' e ')}. `;
 
     for (const p of p0p1.slice(0, 3)) {
-      text += `${p.sigla} ${p.numero}/${p.ano} (${p.casa}) — ${p.ementa.substring(0, 180).trim()}${p.ementa.length > 180 ? '...' : ''}. `;
-      if (p.autor) text += `Autor(a): ${p.autor}${p.partido ? ' (' + p.partido + (p.uf ? '/' + p.uf : '') + ')' : ''}. `;
-      text += `Eixo: ${p.eixo}. `;
+      text += `\n\n• *${p.sigla} ${p.numero}/${p.ano}* (${p.casa})\n`;
+      text += `_Ementa:_ ${p.ementa.substring(0, 180).trim()}${p.ementa.length > 180 ? '...' : ''}\n`;
+      if (p.autor) text += `_Autor(a):_ ${p.autor}${p.partido ? ' (' + p.partido + (p.uf ? '/' + p.uf : '') + ')' : ''}\n`;
+      text += `_Prioridade:_ ${p.prioridade} | _Grau (Siga Lei):_ ${p.grauSigaLei}\n`;
+      text += `_Eixo:_ ${p.eixo} | _Impacto:_ ${p.impacto}\n`;
+      text += `_Posicionamento Sebrae:_ ${p.posicionamento}\n`;
     }
-    if (p0p1.length > 3) text += `Outras ${p0p1.length - 3} proposições prioritárias também foram registradas. `;
+    if (p0p1.length > 3) text += `\nOutras ${p0p1.length - 3} proposições prioritárias também foram registradas. `;
     text += `\n\n`;
+    text += `⚠️ _Proposições P0/P1 requerem validação humana antes de decisão institucional._\n\n`;
   } else if (p2.length > 0) {
-    text += `Não foram identificadas proposições críticas (P0) ou de alta prioridade (P1) hoje. `;
+    text += `Não foram identificadas proposições críticas (P0) ou de alta prioridade (P1) no período. `;
     text += `${p2.length} proposição(ões) em monitoramento (P2) na${casas.length > 1 ? 's casas' : ' ' + casas[0]}.\n\n`;
   } else {
-    text += `Dia sem movimentação legislativa relevante para a pauta Sebrae nas proposições consultadas.\n\n`;
+    text += `Sem movimentação legislativa relevante para a pauta Sebrae nas proposições consultadas.\n\n`;
   }
 
   if (p2.length > 0 && p0p1.length > 0) {
