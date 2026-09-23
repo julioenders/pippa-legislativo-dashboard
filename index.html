@@ -852,6 +852,18 @@
     .tramitacao-date { font-size: 11px; color: var(--accent); font-weight: 600; }
     .tramitacao-desc { font-size: 13px; color: var(--text-muted); margin-top: 2px; line-height: 1.5; }
     .tramitacao-orgao { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-style: italic; }
+    .situacao-line {
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      margin-top: 6px; font-size: 11px;
+    }
+    .situacao-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 500;
+    }
+    .situacao-badge.local { background: rgba(79,141,255,0.12); color: #4f8cff; }
+    .situacao-badge.status { background: rgba(168,85,247,0.12); color: #a855f7; }
+    .situacao-badge.proximo { background: rgba(34,197,94,0.12); color: #22c55e; }
 
     /* Minuta tecnica */
     .minuta-content {
@@ -1340,6 +1352,11 @@
         <div class="mini-spinner"></div>
         <span id="loadingAuthorsText">Buscando autores e partidos...</span>
       </div>
+      <!-- Loading situacao -->
+      <div class="loading-authors" id="loadingSituacao">
+        <div class="mini-spinner"></div>
+        <span id="loadingSituacaoText">Buscando situacao e tramitacao...</span>
+      </div>
 
       <!-- Propositions -->
       <div id="propContainer">
@@ -1686,6 +1703,35 @@ const MACRO_SETORES = {
   'Servicos': { label: 'Servicos', keys: ['Serviço', 'Construção'] },
   'Industria': { label: 'Industria', keys: ['Industria Transformação', 'Extrativa Mineral', 'SIUP - Serviços Industrias De Utilidade Pública'] },
   'Agronegocio': { label: 'Agronegocio', keys: ['Agropecuária'] }
+};
+
+// Mapeamento situacao → proximo passo legislativo
+const PROXIMO_PASSO = {
+  // Senado (SiglaSituacao)
+  'PRONTPAUT': 'Inclusao na pauta e votacao na comissao',
+  'RELATOR': 'Apresentacao de relatorio/parecer',
+  'AGDREL': 'Designacao de relator',
+  'MATDESP': 'Distribuicao para comissao(oes)',
+  'APROVCOM': 'Remessa a outra casa ou plenario',
+  'APRVPLEN': 'Remessa a sancao/veto ou outra casa',
+  'PLENVOT': 'Votacao no plenario',
+  'TRAMCOM': 'Analise e parecer na comissao',
+  'REJCOM': 'Arquivamento ou recurso ao plenario',
+  'VETADO': 'Analise do veto pelo Congresso',
+  'SANCAO': 'Publicacao como lei',
+  // Camara (descricaoSituacao normalizada)
+  'aguardando designacao de relator': 'Designacao de relator',
+  'aguardando parecer': 'Parecer do relator',
+  'pronta para pauta': 'Votacao na comissao ou plenario',
+  'aguardando apreciacao pelo senado federal': 'Tramitacao no Senado Federal',
+  'aguardando criacao de comissao temporaria': 'Criacao de comissao especial',
+  'aguardando despacho do presidente da camara dos deputados': 'Despacho e distribuicao',
+  'tramitando em conjunto': 'Analise conjunta com materia principal',
+  'devolvida ao autor': 'Reapresentacao ou arquivamento',
+  'transformada em norma juridica': 'Processo concluido — publicada',
+  'arquivada': 'Processo encerrado',
+  'aguardando apreciacao do veto': 'Apreciacao do veto pelo Congresso',
+  'sujeita a apreciacao do plenario': 'Inclusao na Ordem do Dia',
 };
 
 // Set today's date
@@ -2208,6 +2254,89 @@ async function fetchAutoresBatch(propositions) {
   applyFilters();
 }
 
+function resolverProximoPasso(situacao, siglaSituacao) {
+  if (siglaSituacao && PROXIMO_PASSO[siglaSituacao]) return PROXIMO_PASSO[siglaSituacao];
+  if (situacao) {
+    const norm = situacao.toLowerCase().trim();
+    if (PROXIMO_PASSO[norm]) return PROXIMO_PASSO[norm];
+    for (const [key, val] of Object.entries(PROXIMO_PASSO)) {
+      if (norm.includes(key)) return val;
+    }
+  }
+  return '';
+}
+
+async function fetchSituacaoBatch(propositions) {
+  if (propositions.length === 0) return;
+
+  const el = document.getElementById('loadingSituacao');
+  const textEl = document.getElementById('loadingSituacaoText');
+  el.classList.add('active');
+
+  const batchSize = 5;
+  let processed = 0;
+
+  for (let i = 0; i < propositions.length; i += batchSize) {
+    const batch = propositions.slice(i, i + batchSize);
+    const promises = batch.map(async (prop) => {
+      try {
+        if (prop.casa === 'Camara') {
+          const data = await fetchWithTimeout(
+            `https://dadosabertos.camara.leg.br/api/v2/proposicoes/${prop.id}`, 15000
+          );
+          if (data && data.dados) {
+            const st = data.dados.statusProposicao || {};
+            prop.situacaoAtual = st.descricaoSituacao || '';
+            prop.localAtual = st.siglaOrgao || '';
+            prop.siglaSituacao = '';
+            prop.proximoPasso = resolverProximoPasso(prop.situacaoAtual, '');
+          }
+        } else {
+          const data = await fetchWithTimeout(
+            `https://legis.senado.leg.br/dadosabertos/materia/movimentacoes/${prop.id}`, 20000
+          );
+          if (data) {
+            let autuacoes = data?.MovimentacaoMateria?.Materia?.Autuacoes?.Autuacao;
+            if (!autuacoes) autuacoes = [];
+            if (!Array.isArray(autuacoes)) autuacoes = [autuacoes];
+
+            let situacao = '', siglaSit = '', localAtual = '';
+            for (const aut of autuacoes) {
+              let sits = aut?.SituacoesAtuais?.SituacaoAtual;
+              if (!sits) continue;
+              if (!Array.isArray(sits)) sits = [sits];
+              if (sits.length > 0) {
+                situacao = sits[0].DescricaoSituacao || '';
+                siglaSit = sits[0].SiglaSituacao || '';
+              }
+              let informes = aut?.InformesLegislativos?.InformeLegislativo;
+              if (!informes) continue;
+              if (!Array.isArray(informes)) informes = [informes];
+              if (informes.length > 0) {
+                const ultimo = informes[0];
+                localAtual = ultimo?.Colegiado?.SiglaColegiado || ultimo?.Local?.SiglaLocal || '';
+              }
+            }
+            prop.situacaoAtual = situacao;
+            prop.siglaSituacao = siglaSit;
+            prop.localAtual = localAtual;
+            prop.proximoPasso = resolverProximoPasso(situacao, siglaSit);
+          }
+        }
+      } catch (e) {
+        // Silently skip failed fetches
+      }
+    });
+
+    await Promise.all(promises);
+    processed += batch.length;
+    textEl.textContent = `Buscando situacao... ${processed}/${propositions.length}`;
+  }
+
+  el.classList.remove('active');
+  applyFilters();
+}
+
 function populatePartidoFilter() {
   const container = document.getElementById('filterPartido');
   const partidos = new Set();
@@ -2295,6 +2424,7 @@ async function fetchData() {
     hideLoading();
 
     fetchAutoresBatch(allPropositions);
+    fetchSituacaoBatch(allPropositions);
 
   } catch (e) {
     console.error('Fetch error:', e);
@@ -2537,6 +2667,12 @@ function renderPropCard(prop) {
           </div>
           ${autorHtml}
           <div class="prop-ementa">${escapeHtml(prop.ementa)}</div>
+          ${prop.situacaoAtual || prop.localAtual || prop.proximoPasso ? `
+          <div class="situacao-line">
+            ${prop.localAtual ? `<span class="situacao-badge local">${escapeHtml(prop.localAtual)}</span>` : ''}
+            ${prop.situacaoAtual ? `<span class="situacao-badge status">${escapeHtml(prop.situacaoAtual)}</span>` : ''}
+            ${prop.proximoPasso ? `<span class="situacao-badge proximo">&#9654; ${escapeHtml(prop.proximoPasso)}</span>` : ''}
+          </div>` : ''}
           <div class="prop-tags">
             <span class="prop-tag prop-tag-relevancia">${prop.relevancia}</span>
             <span class="prop-tag prop-tag-eixo">${prop.eixo}</span>
@@ -3167,7 +3303,7 @@ async function openTramitacoes(id, casa) {
 
     if (casa === 'Camara') {
       const data = await fetchWithTimeout(
-        `https://dadosabertos.camara.leg.br/api/v2/proposicoes/${id}/tramitacoes?ordem=DESC&ordenarPor=dataHora`, 20000
+        `https://dadosabertos.camara.leg.br/api/v2/proposicoes/${id}/tramitacoes`, 20000
       );
       if (data && data.dados) {
         tramitacoes = data.dados.map(t => ({
@@ -3176,21 +3312,33 @@ async function openTramitacoes(id, casa) {
           orgao: t.siglaOrgao || '',
           situacao: t.descricaoSituacao || ''
         }));
+        tramitacoes.sort((a, b) => b.data.localeCompare(a.data));
       }
     } else {
       const data = await fetchWithTimeout(
         `https://legis.senado.leg.br/dadosabertos/materia/movimentacoes/${id}`, 20000
       );
       if (data) {
-        const movs = data?.MovimentacaoMateria?.Materia?.Autuacoes?.Autuacao ||
-                     data?.MovimentacaoMateria?.Materia?.MovimentacaoMateria?.Tramitacoes?.Tramitacao || [];
-        const list = Array.isArray(movs) ? movs : [movs];
-        tramitacoes = list.map(m => ({
-          data: m.DataTramitacao || m.Data || '',
-          descricao: m.DescricaoTramitacao || m.TextoTramitacao || m.Descricao || '',
-          orgao: m.OrigemTramitacao?.SiglaLocal || m.Local || '',
-          situacao: m.SituacaoTramitacao || ''
-        })).filter(t => t.descricao);
+        let autuacoes = data?.MovimentacaoMateria?.Materia?.Autuacoes?.Autuacao;
+        if (!autuacoes) autuacoes = [];
+        if (!Array.isArray(autuacoes)) autuacoes = [autuacoes];
+
+        for (const aut of autuacoes) {
+          let informes = aut?.InformesLegislativos?.InformeLegislativo;
+          if (!informes) continue;
+          if (!Array.isArray(informes)) informes = [informes];
+          for (const inf of informes) {
+            const rawDate = inf.Data || '';
+            tramitacoes.push({
+              data: rawDate.substring(0, 10),
+              descricao: inf.Descricao || '',
+              orgao: inf.Colegiado?.SiglaColegiado || inf.Local?.SiglaLocal || '',
+              situacao: inf.SituacaoIniciada?.SiglaSituacao || ''
+            });
+          }
+        }
+        tramitacoes = tramitacoes.filter(t => t.descricao);
+        tramitacoes.sort((a, b) => b.data.localeCompare(a.data));
       }
     }
 
@@ -3199,7 +3347,15 @@ async function openTramitacoes(id, casa) {
       return;
     }
 
+    const situacaoHtml = prop && (prop.situacaoAtual || prop.proximoPasso) ? `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:14px">
+        ${prop.situacaoAtual ? `<div style="font-size:12px;margin-bottom:4px"><strong style="color:var(--text)">Situacao atual:</strong> <span style="color:#a855f7">${escapeHtml(prop.situacaoAtual)}</span></div>` : ''}
+        ${prop.localAtual ? `<div style="font-size:12px;margin-bottom:4px"><strong style="color:var(--text)">Local:</strong> <span style="color:#4f8cff">${escapeHtml(prop.localAtual)}</span></div>` : ''}
+        ${prop.proximoPasso ? `<div style="font-size:12px"><strong style="color:var(--text)">Proximo passo:</strong> <span style="color:#22c55e">${escapeHtml(prop.proximoPasso)}</span></div>` : ''}
+      </div>` : '';
+
     content.innerHTML = `
+      ${situacaoHtml}
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">${tramitacoes.length} movimentacao(oes) encontrada(s)</div>
       <div class="tramitacao-list">
         ${tramitacoes.map(t => `
