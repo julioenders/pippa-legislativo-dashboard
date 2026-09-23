@@ -1958,80 +1958,80 @@ async function fetchCamara(dateStart, dateEnd) {
 }
 
 async function fetchSenado(dateStart, dateEnd) {
-  showLoading('Consultando Senado Federal...', 'Buscando materias em tramitacao...');
+  showLoading('Consultando Senado Federal...', 'Buscando materias com movimentacao recente...');
 
   let propositions = [];
-  const currentYear = parseInt(dateStart.split('-')[0]);
-  const siglas = ['pl', 'plp', 'pec', 'mpv', 'pdl'];
-
-  // Busca proposicoes em tramitacao de 2019 ate o ano atual
-  // O parametro 'ano' da API do Senado filtra por ano de APRESENTACAO,
-  // nao de atividade. Sem iterar anos, proposicoes antigas ativas (ex: PLP 134/2020)
-  // seriam ignoradas.
-  const startYear = 2019;
-  const years = [];
-  for (let y = startYear; y <= currentYear; y++) years.push(y);
-
   const seen = new Set();
-  let totalQueries = siglas.length * years.length;
-  let completed = 0;
 
-  for (const sigla of siglas) {
-    // Requisicoes em paralelo por ano para cada sigla
-    const yearPromises = years.map(year => {
-      const url = `https://legis.senado.leg.br/dadosabertos/materia/pesquisa/lista?sigla=${sigla}&ano=${year}&tramitando=S`;
-      return fetchWithTimeout(url);
-    });
+  // Usa endpoint /atualizadas para encontrar materias com acao legislativa
+  // no periodo selecionado — independente do ano de apresentacao.
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(dateStart + 'T00:00:00');
+  const diffDays = Math.ceil((today - start) / (1000 * 60 * 60 * 24)) + 2;
+  const numdias = Math.min(Math.max(diffDays, 3), 60);
 
-    const results = await Promise.all(yearPromises);
-    completed += years.length;
+  try {
+    const url = `https://legis.senado.leg.br/dadosabertos/materia/atualizadas?numdias=${numdias}`;
+    showLoading('Consultando Senado Federal...', `Buscando materias atualizadas (${numdias} dias)...`);
+    const data = await fetchWithTimeout(url, 45000);
 
-    showLoading('Consultando Senado Federal...', `${sigla.toUpperCase()}: ${completed}/${totalQueries} consultas concluidas...`);
+    if (data) {
+      let materias = data?.ListaMateriasAtualizadas?.Materias?.Materia;
+      if (!materias) materias = [];
+      if (!Array.isArray(materias)) materias = [materias];
 
-    for (const data of results) {
-      if (!data) continue;
-      try {
-        let materias = [];
-        const resp = data?.PesquisaBasicaMateria?.Materias?.Materia;
-        if (Array.isArray(resp)) {
-          materias = resp;
-        } else if (resp) {
-          materias = [resp];
+      showLoading('Consultando Senado Federal...', `${materias.length} materias encontradas, filtrando...`);
+
+      for (const mat of materias) {
+        const ident = mat.IdentificacaoMateria || {};
+        const dados = mat.DadosBasicosMateria || {};
+        const siglaM = (ident.SiglaSubtipoMateria || '').toUpperCase();
+
+        if (!TIPOS_PROPOSICAO.includes(siglaM)) continue;
+
+        // Filtra por data de atualizacao dentro do periodo selecionado
+        const atualizacoes = mat.AtualizacoesRecentes?.Atualizacao;
+        let updateList = [];
+        if (Array.isArray(atualizacoes)) updateList = atualizacoes;
+        else if (atualizacoes) updateList = [atualizacoes];
+
+        let inRange = false;
+        for (const atualiz of updateList) {
+          const updateDay = (atualiz.DataUltimaAtualizacao || '').substring(0, 10);
+          if (updateDay >= dateStart && updateDay <= dateEnd) { inRange = true; break; }
         }
+        if (!inRange) continue;
 
-        for (const mat of materias) {
-          const codigo = mat.CodigoMateria || mat.Codigo || '';
-          if (seen.has(codigo)) continue;
-          seen.add(codigo);
+        const codigo = ident.CodigoMateria || '';
+        if (seen.has(codigo)) continue;
+        seen.add(codigo);
 
-          const siglaM = mat.SiglaSubtipoMateria || mat.DescricaoSubtipoMateria || mat.Sigla || sigla.toUpperCase();
-          const numero = mat.NumeroMateria || '';
-          const ano = mat.AnoMateria || '';
-          const ementa = mat.EmentaMateria || mat.Ementa || '';
-          const nomeAutor = mat.NomeAutor || mat.AutorPrincipal || '';
+        const ementa = dados.EmentaMateria || '';
+        const explicacao = dados.ExplicacaoEmentaMateria || '';
+        const ementaCompleta = explicacao ? `${ementa} | ${explicacao}` : ementa;
 
-          propositions.push({
-            id: codigo,
-            sigla: siglaM,
-            numero: numero,
-            ano: ano,
-            ementa: ementa,
-            casa: 'Senado',
-            siglaTipo: siglaM,
-            dataApresentacao: mat.DataApresentacao || mat.Data || dateStart,
-            url: `https://www.senado.leg.br/web/atividade/materias/-/materia/${codigo}`,
-            autor: nomeAutor || '',
-            partido: mat.SiglaPartidoAutor || '',
-            uf: mat.UfAutor || ''
-          });
-        }
-      } catch (e) {
-        console.warn(`Error parsing Senado ${sigla}:`, e);
+        propositions.push({
+          id: codigo,
+          sigla: siglaM,
+          numero: (ident.NumeroMateria || '').replace(/^0+/, ''),
+          ano: ident.AnoMateria || '',
+          ementa: ementaCompleta,
+          casa: 'Senado',
+          siglaTipo: siglaM,
+          dataApresentacao: dados.DataApresentacao || dateStart,
+          url: `https://www.senado.leg.br/web/atividade/materias/-/materia/${codigo}`,
+          autor: dados.Autor || '',
+          partido: '',
+          uf: ''
+        });
       }
     }
+  } catch (e) {
+    console.warn('Error fetching Senado atualizadas:', e);
   }
 
-  showLoading('Consultando Senado Federal...', `${propositions.length} materias em tramitacao encontradas`);
+  showLoading('Consultando Senado Federal...', `${propositions.length} proposicoes com movimentacao no periodo`);
   return propositions;
 }
 
