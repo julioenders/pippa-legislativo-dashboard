@@ -1961,19 +1961,35 @@ async function fetchSenado(dateStart, dateEnd) {
   showLoading('Consultando Senado Federal...', 'Buscando materias em tramitacao...');
 
   let propositions = [];
-  const year = dateStart.split('-')[0];
-  const dateCompactStart = dateStart.replace(/-/g, '');
-  const dateCompactEnd = dateEnd.replace(/-/g, '');
+  const currentYear = parseInt(dateStart.split('-')[0]);
   const siglas = ['pl', 'plp', 'pec', 'mpv', 'pdl'];
 
-  for (let i = 0; i < siglas.length; i++) {
-    const sigla = siglas[i];
-    showLoading('Consultando Senado Federal...', `Buscando ${sigla.toUpperCase()}s de ${dateStart} a ${dateEnd}... (${i+1}/${siglas.length})`);
+  // Busca proposicoes em tramitacao de 2019 ate o ano atual
+  // O parametro 'ano' da API do Senado filtra por ano de APRESENTACAO,
+  // nao de atividade. Sem iterar anos, proposicoes antigas ativas (ex: PLP 134/2020)
+  // seriam ignoradas.
+  const startYear = 2019;
+  const years = [];
+  for (let y = startYear; y <= currentYear; y++) years.push(y);
 
-    const url = `https://legis.senado.leg.br/dadosabertos/materia/pesquisa/lista?sigla=${sigla}&ano=${year}&dataInicioApresentacao=${dateCompactStart}&dataFimApresentacao=${dateCompactEnd}&tramitando=S`;
-    const data = await fetchWithTimeout(url);
+  const seen = new Set();
+  let totalQueries = siglas.length * years.length;
+  let completed = 0;
 
-    if (data) {
+  for (const sigla of siglas) {
+    // Requisicoes em paralelo por ano para cada sigla
+    const yearPromises = years.map(year => {
+      const url = `https://legis.senado.leg.br/dadosabertos/materia/pesquisa/lista?sigla=${sigla}&ano=${year}&tramitando=S`;
+      return fetchWithTimeout(url);
+    });
+
+    const results = await Promise.all(yearPromises);
+    completed += years.length;
+
+    showLoading('Consultando Senado Federal...', `${sigla.toUpperCase()}: ${completed}/${totalQueries} consultas concluidas...`);
+
+    for (const data of results) {
+      if (!data) continue;
       try {
         let materias = [];
         const resp = data?.PesquisaBasicaMateria?.Materias?.Materia;
@@ -1985,9 +2001,12 @@ async function fetchSenado(dateStart, dateEnd) {
 
         for (const mat of materias) {
           const codigo = mat.CodigoMateria || mat.Codigo || '';
+          if (seen.has(codigo)) continue;
+          seen.add(codigo);
+
           const siglaM = mat.SiglaSubtipoMateria || mat.DescricaoSubtipoMateria || mat.Sigla || sigla.toUpperCase();
           const numero = mat.NumeroMateria || '';
-          const ano = mat.AnoMateria || year;
+          const ano = mat.AnoMateria || '';
           const ementa = mat.EmentaMateria || mat.Ementa || '';
           const nomeAutor = mat.NomeAutor || mat.AutorPrincipal || '';
 
@@ -1999,7 +2018,7 @@ async function fetchSenado(dateStart, dateEnd) {
             ementa: ementa,
             casa: 'Senado',
             siglaTipo: siglaM,
-            dataApresentacao: mat.DataApresentacao || mat.Data || date,
+            dataApresentacao: mat.DataApresentacao || mat.Data || dateStart,
             url: `https://www.senado.leg.br/web/atividade/materias/-/materia/${codigo}`,
             autor: nomeAutor || '',
             partido: mat.SiglaPartidoAutor || '',
@@ -2012,6 +2031,7 @@ async function fetchSenado(dateStart, dateEnd) {
     }
   }
 
+  showLoading('Consultando Senado Federal...', `${propositions.length} materias em tramitacao encontradas`);
   return propositions;
 }
 
