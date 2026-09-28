@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "gerado_em": "2026-09-21T13:53:47",
+    "gerado_em": "2026-09-28T06:16:09",
     "fonte": "API OLAP Observatório Sebrae (cubo RF)",
     "filtros": "Registration Status=2 (ativas), Sebrae Commercial Company Indicator=1 (mercantis)",
     "nota": "Snapshot sem dimensão temporal — reflete a carga mais recente da Receita Federal"
